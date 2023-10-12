@@ -2,6 +2,8 @@
 Reinforcement Learning for Robot Bin-Picking with the ABB 120 Robot  
 using PyBullet Physics Engine and Gymnasium Environment
 
+![image](https://github.com/robingartz/robo-ml-gym/assets/76932159/34465559-9470-41b0-9ad7-18facbd522cd)
+
 ## Install Gymnasium on Windows:
 $ conda create -n gymenv  
 $ conda activate gymenv  
