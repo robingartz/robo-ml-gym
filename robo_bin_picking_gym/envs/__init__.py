@@ -1,0 +1,1 @@
+from robo_bin_picking_gym.envs.robo_world import RoboWorldEnv

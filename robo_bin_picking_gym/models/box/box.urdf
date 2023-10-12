@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot name="box">
+
+  <link name="base_link">
+    <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+            <mesh filename="gym-examples/gym_examples/models/box/visual/box.stl"/>
+        </geometry>
+        <material name="abb_orange">
+            <color rgba="0.2 0.2 0.2 1"/>
+        </material>
+    </visual>
+    <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+            <mesh filename="gym-examples/gym_examples/models/box/visual/box.stl"/>
+        </geometry>
+        <material name="yellow">
+            <color rgba="0.2 0.2 0.2 1"/>
+        </material>
+        <inertial>
+            <mass value="6.21503193527"/>
+            <inertia ixx="0.0247271241712" ixy="-0.00130888043627" ixz="-8.0795905152e-05" iyy="0.04723746454" iyz="-8.0325637493e-06" izz="0.049128484834"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+        </inertial>  
+    </collision>
+  </link>
+
+</robot>
