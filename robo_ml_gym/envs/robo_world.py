@@ -158,9 +158,9 @@ class RoboWorldEnv(gym.Env):
             # ABB IRB120
             start_pos = [0, 0, 0.18/2 + 0.65]
             start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
-            urdf_path = "robo_bin_picking_gym/models/irb120/irb120.urdf"
-            if "robo_bin_picking_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
-                urdf_path = "/robo_bin_picking_gym/" + urdf_path
+            urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
+            if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
+                urdf_path = "/robo_ml_gym/" + urdf_path
             self.robot_id = pybullet.loadURDF(urdf_path, basePosition=start_pos, baseOrientation=start_orientation,
                                               useFixedBase=1, flags=pybullet.URDF_MAINTAIN_LINK_ORDER)
             print(pybullet.getNumJoints(self.robot_id))

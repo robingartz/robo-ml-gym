@@ -5,7 +5,7 @@
     <visual>
         <origin rpy="0 0 0" xyz="0 0 0"/>
         <geometry>
-            <mesh filename="robo_bin_picking_gym/models/irb120/visual/base_link.stl"/>
+            <mesh filename="robo_ml_gym/models/irb120/visual/base_link.stl"/>
         </geometry>
         <material name="abb_orange">
             <color rgba="1 0.43 0 1"/>
@@ -14,7 +14,7 @@
     <collision>
         <origin rpy="0 0 0" xyz="0 0 0"/>
         <geometry>
-            <mesh filename="robo_bin_picking_gym/models/irb120/collision/base_link.stl"/>
+            <mesh filename="robo_ml_gym/models/irb120/collision/base_link.stl"/>
         </geometry>
         <material name="yellow">
             <color rgba="0 1 1 1"/>
@@ -31,14 +31,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_1.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_1.stl"/>
       </geometry>
       <material name="abb_orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_1.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_1.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -53,14 +53,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_2.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_2.stl"/>
       </geometry>
       <material name="abb_orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_2.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_2.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -75,14 +75,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_3.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_3.stl"/>
       </geometry>
       <material name="abb_orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_3.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_3.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -97,14 +97,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_4.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_4.stl"/>
       </geometry>
       <material name="abb_orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_4.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_4.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -119,14 +119,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_5.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_5.stl"/>
       </geometry>
       <material name="abb_orange"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_5.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_5.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -141,7 +141,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="-0.013 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/visual/link_6_ef.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_6_ef.stl"/>
       </geometry>
       <material name="yellow">
         <color rgba="0.7 0.7 0 1"/>
@@ -150,7 +150,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="-0.013 0 0"/>
       <geometry>
-        <mesh filename="robo_bin_picking_gym/models/irb120/collision/link_6_ef.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_6_ef.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>

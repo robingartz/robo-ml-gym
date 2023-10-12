@@ -3,7 +3,7 @@ import gymnasium as gym
 
 class Run:
     def __init__(self):
-        env = gym.make("robo_bin_picking_gym:robo_bin_picking_gym/RoboWorld-v0", size=4, render_mode="human")
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", size=4, render_mode="human")
 
         observation, info = env.reset(seed=42)
         for i in range(100_000):
