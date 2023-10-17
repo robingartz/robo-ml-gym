@@ -15,7 +15,7 @@ from gymnasium import spaces
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode=None, verbose=False):
         # box dimensions (the area the cube can spawn within)
         BOX_WIDTH = 0.39 / 2
         BOX_LENGTH = 0.58 / 2
@@ -67,7 +67,8 @@ class RoboWorldEnv(gym.Env):
         )
 
         # we have 6 actions, corresponding to the angles of the six joints
-        self.action_space = spaces.Box(0, 2*np.pi, shape=(6,), dtype=np.float32)
+        # ToDo: are we controlling velocity or position or torque of the joints?
+        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
 
         """
         The following dictionary maps abstract actions from `self.action_space` to
@@ -81,7 +82,11 @@ class RoboWorldEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # human or rgb_array
+        self.verbose = verbose
+        self.resets = 0
+        self.cur_steps = 0
         self.steps = 0
+        self.score = 0
 
         self.physics_client = None
         self.cube_id = None
@@ -89,6 +94,7 @@ class RoboWorldEnv(gym.Env):
         self.joints_count = None
         self._end_effector_pos = None
         self._target_location = None
+        self.prev_dist = self.dist = 0.09
 
     def _get_obs(self):
         #joints_info = []
@@ -140,27 +146,34 @@ class RoboWorldEnv(gym.Env):
         if self.render_mode == "human":
             self._render_frame()
 
+        self.print_verbose(f"sim: {self.resets}, steps: {self.cur_steps}, score: {self.score}")
+        self.resets += 1
+        self.cur_steps = 0
+        self.score = 0
+
         return observation, info
 
     def step(self, action):
-        # Map the action (element of {0,1,2,3,4,5}) to the direction we walk in
-        #direction = self._action_to_direction[action]
-        # We use `np.clip` to make sure we don't leave the grid
-        # An episode is done iff the agent has reached the target
+        # move joints
+        for joint in range(self.joints_count):
+            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint,
+                                           controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint])
+
         terminated = np.array_equal(self._end_effector_pos, self._target_location)
-        reward = 1 if terminated else 0  # Binary sparse rewards
+        reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
 
         if self.render_mode == "human":
             self._render_frame()
 
-        # move joint
-        #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=0, controlMode=pybullet.VELOCITY_CONTROL,
-        #                               targetVelocity=0.5)
-
         self.steps += 1
+        self.cur_steps += 1
         return observation, reward, terminated, False, info
+
+    def print_verbose(self, s):
+        if self.verbose:
+            print(s)
 
     def _get_info(self):
         return {"distance": np.linalg.norm(self._target_location - self._end_effector_pos, ord=1)}
@@ -170,6 +183,18 @@ class RoboWorldEnv(gym.Env):
                         self.np_random.uniform(region_low[1], region_high[1]),
                         self.np_random.uniform(region_low[2], region_high[2])])
         return pos
+
+    def _get_reward(self):
+        #dist_to_reward = {0.05: 21, 0.15: 13, }
+        self.prev_dist = self.dist
+        self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos, ord=1))
+        # reward closer distance to cube (proportional reward)
+        reward = 1 / max(self.dist, 0.05)
+        # reward moving closer to cube than previous timestep
+        #reward += 1.5 if self.dist < self.prev_dist else -1.5
+        #print("dist:", self.dist, " reward:", reward)
+        self.score += reward
+        return reward
 
     def render(self):
         if self.render_mode == "rgb_array":
@@ -189,7 +214,7 @@ class RoboWorldEnv(gym.Env):
 
     def _setup(self):
         # pybullet setup
-        self.physics_client = pybullet.connect(pybullet.GUI)  # pybullet.GUI or pybullet.DIRECT
+        self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
 
         # world building
