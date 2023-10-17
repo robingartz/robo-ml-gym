@@ -24,11 +24,17 @@ class RoboWorldEnv(gym.Env):
         BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273)
         CUBE_DIM = 0.05
         FLAT = 0.1  # ToDo: figure out what to do for the regions that are 2D...
+        MAX_EF_HEIGHT = 0.4  # ToDo: this value is debatable, should it be enforced etc?
 
         # defines a centre point (x,y,z) and the (w/2,l/2,h/2) for a cube region in space for the possible starting cube
         # position and target position
-        self.TARGET_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT], [BOX_WIDTH, BOX_LENGTH*1.6, 0.0+FLAT]], dtype=np.float32)
-        self.CUBE_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT], [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM]], dtype=np.float32)
+        self.TARGET_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
+                                       [BOX_WIDTH, BOX_LENGTH*1.6, 0.0+FLAT]], dtype=np.float32)
+        self.CUBE_START_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
+                                           [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM]],
+                                          dtype=np.float32)
+        self.CUBE_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
+                                     [BOX_WIDTH, BOX_LENGTH*1.6, BOX_HEIGHT*3]], dtype=np.float32)
 
         # get the low and high limits for these regions
         # target region
@@ -36,11 +42,15 @@ class RoboWorldEnv(gym.Env):
         self.TARGET_REGION_LOW = np.array([TR[0][0] - TR[1][0], TR[0][1] - TR[1][1], TR[0][2] - TR[1][2]])
         self.TARGET_REGION_HIGH = np.array([TR[0][0] + TR[1][0], TR[0][1] + TR[1][1], TR[0][2] + TR[1][2]])
         # cube spawn region
+        CSR = self.CUBE_START_REGION
+        self.CUBE_START_REGION_LOW = np.array([CSR[0][0] - CSR[1][0], CSR[0][1] - CSR[1][1], CSR[0][2] - CSR[1][2]])
+        self.CUBE_START_REGION_HIGH = np.array([CSR[0][0] + CSR[1][0], CSR[0][1] + CSR[1][1], CSR[0][2] + CSR[1][2]])
+        # cube region (all places the cube could possibly exist at)
         CR = self.CUBE_REGION
         self.CUBE_REGION_LOW = np.array([CR[0][0] - CR[1][0], CR[0][1] - CR[1][1], CR[0][2] - CR[1][2]])
         self.CUBE_REGION_HIGH = np.array([CR[0][0] + CR[1][0], CR[0][1] + CR[1][1], CR[0][2] + CR[1][2]])
         # end effector possible position
-        MAX_EF_HEIGHT = 0.4  # this value is debatable, should it be enforced etc?
+        self.END_EFFECTOR_REGION_LOW = np.array([TR[0][0] - TR[1][0], TR[0][1] - TR[1][1], TR[0][2] - MAX_EF_HEIGHT])
         self.END_EFFECTOR_REGION_HIGH = np.array([TR[0][0] + TR[1][0], TR[0][1] + TR[1][1], TR[0][2] + MAX_EF_HEIGHT])
 
         # observations are dictionaries with the robot's joint angles and end effector position and
@@ -88,7 +98,8 @@ class RoboWorldEnv(gym.Env):
         #joints_info = [pybullet.getJointInfo(self.robot_id, joint_num)[_parentFramePosIdx] for joint_num in range(joints_count)]
 
         # observations
-        joint_positions = np.array([info[0] for info in pybullet.getJointStates(self.robot_id, range(self.joints_count))], dtype=np.float32)
+        joint_positions = np.array([info[0] for info in pybullet.getJointStates(
+            self.robot_id, range(self.joints_count))], dtype=np.float32)
         # ToDo: below is wrong, this is the joint position, but it should be the end effector position
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
         cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
@@ -115,7 +126,7 @@ class RoboWorldEnv(gym.Env):
         pybullet.restoreState(self.init_state)
 
         # set a random position for the cube
-        cube_pos = self._get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH)
+        cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
         pybullet.resetBasePositionAndOrientation(self.cube_id, cube_pos, cube_orn)
 
@@ -147,10 +158,6 @@ class RoboWorldEnv(gym.Env):
         # move joint
         #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=0, controlMode=pybullet.VELOCITY_CONTROL,
         #                               targetVelocity=0.5)
-
-        if self.steps == 1200:
-            print("saved")
-            self.init_state = pybullet.saveState()
 
         self.steps += 1
         return observation, reward, terminated, False, info
@@ -221,8 +228,9 @@ class RoboWorldEnv(gym.Env):
                                      [BOX_POS[0], BOX_POS[1]+BOX_LENGTH-BOX_OFFSET, BOX_POS[2]+BOX_HEIGHT+BOX_OFFSET],
                                      [BOX_POS[0]-BOX_WIDTH, BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                      [BOX_POS[0]+BOX_WIDTH, BOX_POS[1], BOX_POS[2]+BOX_HEIGHT]]
-        #box_id = pybullet.createCollisionShapeArray(shapeTypes=shape_types, halfExtents=half_extents, collisionFramePositions=collision_frame_positions)
-        #pybullet.createMultiBody(mass, box_id, basePosition=[0,0,0])
+        box_id = pybullet.createCollisionShapeArray(shapeTypes=shape_types,halfExtents=half_extents,
+                                                    collisionFramePositions=collision_frame_positions)
+        pybullet.createMultiBody(mass, box_id, basePosition=[0,0,0])
 
         # objects for pick-n-place
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
@@ -233,7 +241,7 @@ class RoboWorldEnv(gym.Env):
 
         #for i in range(200):
             #cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
-            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH))
+            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH))
             #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
 
         # ABB IRB120
