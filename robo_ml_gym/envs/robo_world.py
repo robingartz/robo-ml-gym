@@ -71,6 +71,7 @@ class RoboWorldEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # human or rgb_array
+        self.steps = 0
 
         self.physics_client = None
         self.cube_id = None
@@ -102,9 +103,6 @@ class RoboWorldEnv(gym.Env):
         #print(observations)
         return observations
 
-    def _get_info(self):
-        return {"distance": np.linalg.norm(self._target_location - self._end_effector_pos, ord=1)}
-
     def reset(self, seed=None, options=None):
         # we need the following line to seed self.np_random
         super().reset(seed=seed)
@@ -117,14 +115,13 @@ class RoboWorldEnv(gym.Env):
         pybullet.restoreState(self.init_state)
 
         # set a random position for the cube
-        cube_pos = self.get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH)
+        cube_pos = self._get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH)
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
         pybullet.resetBasePositionAndOrientation(self.cube_id, cube_pos, cube_orn)
 
         # set a random position for the target location
-        #self._target_location = self.get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
+        #self._target_location = self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
         self._target_location = np.array((self.TARGET_REGION[0]))
-        print("_target_location:", self._target_location)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -133,13 +130,6 @@ class RoboWorldEnv(gym.Env):
             self._render_frame()
 
         return observation, info
-
-    def get_rnd_pos(self, region_low, region_high):
-        pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
-                        self.np_random.uniform(region_low[1], region_high[1]),
-                        self.np_random.uniform(region_low[2], region_high[2])
-                        ])
-        return pos
 
     def step(self, action):
         # Map the action (element of {0,1,2,3,4,5}) to the direction we walk in
@@ -158,7 +148,21 @@ class RoboWorldEnv(gym.Env):
         #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=0, controlMode=pybullet.VELOCITY_CONTROL,
         #                               targetVelocity=0.5)
 
+        if self.steps == 1200:
+            print("saved")
+            self.init_state = pybullet.saveState()
+
+        self.steps += 1
         return observation, reward, terminated, False, info
+
+    def _get_info(self):
+        return {"distance": np.linalg.norm(self._target_location - self._end_effector_pos, ord=1)}
+
+    def _get_rnd_pos(self, region_low, region_high):
+        pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
+                        self.np_random.uniform(region_low[1], region_high[1]),
+                        self.np_random.uniform(region_low[2], region_high[2])])
+        return pos
 
     def render(self):
         if self.render_mode == "rgb_array":
@@ -217,8 +221,8 @@ class RoboWorldEnv(gym.Env):
                                      [BOX_POS[0], BOX_POS[1]+BOX_LENGTH-BOX_OFFSET, BOX_POS[2]+BOX_HEIGHT+BOX_OFFSET],
                                      [BOX_POS[0]-BOX_WIDTH, BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                      [BOX_POS[0]+BOX_WIDTH, BOX_POS[1], BOX_POS[2]+BOX_HEIGHT]]
-        box_id = pybullet.createCollisionShapeArray(shapeTypes=shape_types, halfExtents=half_extents, collisionFramePositions=collision_frame_positions)
-        pybullet.createMultiBody(mass, box_id, basePosition=[0,0,0])
+        #box_id = pybullet.createCollisionShapeArray(shapeTypes=shape_types, halfExtents=half_extents, collisionFramePositions=collision_frame_positions)
+        #pybullet.createMultiBody(mass, box_id, basePosition=[0,0,0])
 
         # objects for pick-n-place
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
@@ -229,8 +233,8 @@ class RoboWorldEnv(gym.Env):
 
         #for i in range(200):
             #cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
-            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH))
-            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
+            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH))
+            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
 
         # ABB IRB120
         # ToDo: add inertia to urdf file
