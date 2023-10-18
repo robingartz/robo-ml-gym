@@ -7,7 +7,7 @@ from stable_baselines3 import DQN, PPO
 class Run:
     def __init__(self):
         sims = 3000
-        total_time_steps = 10_000
+        total_time_steps = 200_000
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, verbose=True)
 

@@ -21,7 +21,7 @@ class RoboWorldEnv(gym.Env):
         BOX_LENGTH = 0.58 / 2
         BOX_HEIGHT = 0.18 / 2  # height of the sides of the box from its base
         BOX_OFFSET = 0.008 / 2  # thickness of the sides of the box
-        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273)
+        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)
         CUBE_DIM = 0.05
         FLAT = 0.1  # ToDo: figure out what to do for the regions that are 2D...
         MAX_EF_HEIGHT = 0.4  # ToDo: this value is debatable, should it be enforced etc?
@@ -106,8 +106,6 @@ class RoboWorldEnv(gym.Env):
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
             self.robot_id, range(self.joints_count))], dtype=np.float32)
-        # ToDo: below is wrong, this is the joint position, but it should be the end effector position
-        self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
         cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
 
         observations = {
@@ -128,6 +126,9 @@ class RoboWorldEnv(gym.Env):
         if self.physics_client is None:
             self._setup()
 
+        self.print_verbose(f"total_steps: {self.steps}, sim: {self.resets}, steps: {self.cur_steps}, "
+                           f"dist: {self.dist}, score: {self.score}")
+
         # reset the robot's position
         pybullet.restoreState(self.init_state)
 
@@ -139,6 +140,7 @@ class RoboWorldEnv(gym.Env):
         # set a random position for the target location
         #self._target_location = self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
         self._target_location = np.array((self.TARGET_REGION[0]))
+        self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -146,7 +148,6 @@ class RoboWorldEnv(gym.Env):
         if self.render_mode == "human":
             self._render_frame()
 
-        self.print_verbose(f"sim: {self.resets}, steps: {self.cur_steps}, score: {self.score}")
         self.resets += 1
         self.cur_steps = 0
         self.score = 0
@@ -159,7 +160,13 @@ class RoboWorldEnv(gym.Env):
             pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint,
                                            controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint])
 
-        terminated = np.array_equal(self._end_effector_pos, self._target_location)
+        pybullet.stepSimulation()
+
+        # ToDo: below is wrong, this is the joint position, but it should be the end effector position
+        self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
+        self._update_dist()
+
+        terminated = self.dist < 0.056
         reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
@@ -176,7 +183,11 @@ class RoboWorldEnv(gym.Env):
             print(s)
 
     def _get_info(self):
-        return {"distance": np.linalg.norm(self._target_location - self._end_effector_pos, ord=1)}
+        return {"distance": np.linalg.norm(self._target_location, ord=1)}
+
+    def _update_dist(self):
+        self.prev_dist = self.dist
+        self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos))
 
     def _get_rnd_pos(self, region_low, region_high):
         pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
@@ -186,12 +197,10 @@ class RoboWorldEnv(gym.Env):
 
     def _get_reward(self):
         #dist_to_reward = {0.05: 21, 0.15: 13, }
-        self.prev_dist = self.dist
-        self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos, ord=1))
         # reward closer distance to cube (proportional reward)
         reward = 1 / max(self.dist, 0.05)
         # reward moving closer to cube than previous timestep
-        #reward += 1.5 if self.dist < self.prev_dist else -1.5
+        #reward = 1.5 if self.dist < self.prev_dist else -1.5
         #print("dist:", self.dist, " reward:", reward)
         self.score += reward
         return reward
@@ -206,8 +215,6 @@ class RoboWorldEnv(gym.Env):
 
         if self.render_mode == "human":
             ...
-
-        pybullet.stepSimulation()
 
         if self.render_mode == "human":
             time.sleep(1.0/240.0)
@@ -241,7 +248,7 @@ class RoboWorldEnv(gym.Env):
         BOX_LENGTH = 0.58 / 2
         BOX_HEIGHT = 0.18 / 2
         BOX_OFFSET = 0.008 / 2
-        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273)
+        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)
         shape_types = [pybullet.GEOM_BOX] * 5
         half_extents = [[BOX_WIDTH-BOX_OFFSET, BOX_LENGTH, BOX_OFFSET],
                         [BOX_WIDTH-BOX_OFFSET, BOX_OFFSET, BOX_HEIGHT-BOX_OFFSET],

@@ -5,13 +5,13 @@ from stable_baselines3 import A2C
 
 class Run:
     def __init__(self):
-        sims = 3000
+        sims = 30_000
         total_time_steps = 60_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, render_mode="human")
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, render_mode="human", verbose=True)
 
         # load models
-        model = A2C.load("models/reach-model-A2C-v100k", env)
+        model = A2C.load("models/reach-model-A2C-v200k", env)
         #model = DQN.load("cpm/cartpole-model-dqn-v320k", env)
         #model = PPO.load("cpm/cartpole-model-ppo-v100k", env)
 
@@ -23,7 +23,7 @@ class Run:
             obs, reward, done, info = vec_env.step(action)
             score += reward
             vec_env.render("human")
-            print(score)
+            #print(score)
             # VecEnv resets automatically
             # if done:
             #   obs = vec_env.reset()
