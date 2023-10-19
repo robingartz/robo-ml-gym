@@ -80,7 +80,7 @@ class RoboWorldEnv(gym.Env):
         self.render_mode = render_mode  # human or rgb_array
         self.verbose = verbose
         self.verbose_text = ""
-        self.verbose_file = f"models/verbose/{int(time.time())}"
+        self.verbose_file = f"models/verbose/{int(time.time())}.txt"
         self.resets = 0
         self.cur_steps = 0
         self.steps = 0

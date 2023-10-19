@@ -25,7 +25,7 @@ class Run:
 
         algo_name = str(model.__class__).split('.')[-1].strip("'>")
         time_s = int(time.time())
-        model_filename = f"models/{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}.txt"
+        model_filename = f"models/{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}"
 
         # train model & save it
         self.start_time = time.time()
@@ -53,28 +53,28 @@ def main():
     env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
     policy_name = "MultiInputPolicy"
     models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
-    total_time_steps_dict = {"PPO": 50_000, "SAC": 5_000, "A2C": 50_000}
+    total_time_steps_dict = {"PPO": 250_000, "SAC": 5_000, "A2C": 250_000}
     max_ep_steps = int(240 * 1.5)
 
     # PPO
     model_name = "PPO"
     env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
     model = models_dict[model_name](policy_name, env, verbose=1, learning_rate=2e-4, device="auto")
-    Run(total_time_steps=total_time_steps_dict[model_name], model=model)
+    Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
     del env, model
 
-    # SAC
-    model_name = "SAC"
-    env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-    model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
-    Run(total_time_steps=total_time_steps_dict[model_name], model=model)
-    del env, model
+    ## SAC
+    #model_name = "SAC"
+    #env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
+    #model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
+    #Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
+    #del env, model
 
     # A2C
     model_name = "A2C"
     env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
     model = models_dict[model_name](policy_name, env, n_steps=240*2, learning_rate=5e-4, verbose=1, device="auto")
-    Run(total_time_steps=total_time_steps_dict[model_name], model=model)
+    Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
     del env, model
 
 
