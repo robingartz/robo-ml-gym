@@ -1,19 +1,23 @@
 import gymnasium as gym
 
-from stable_baselines3 import A2C, PPO
+from stable_baselines3 import A2C, PPO, SAC
 
 
 class Run:
-    def __init1__(self):
-        sims = 30_000
-        total_time_steps = 60_000
+    def __init__(self):
+        pass
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, render_mode="human", verbose=True)
+    def run_with_model(self):
+        sims = 190_000
+        total_time_steps = 160_000
+
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*12, render_mode="human", verbose=True)
 
         # load models
-        #model = A2C.load("models/reach-model-A2C-v200k", env)
-        model = PPO.load("models/reach-model-PPO-v600k", env)
-        #model = DQN.load("cpm/cartpole-model-dqn-v320k", env)
+        #model = PPO.load("models/PPO-v750k-R2-1697764483", env)
+        #model = SAC.load("models/R3.1-vary-lr_ground/SAC-v55k-R2-1697792186", env)
+        model = SAC.load("models/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
+        #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
 
         vec_env = model.get_env()
         obs = vec_env.reset()
@@ -28,7 +32,7 @@ class Run:
             # if done:
             #   obs = vec_env.reset()
 
-    def __init__(self):
+    def run_without_model(self):
         sims = 5
         steps_per_sim = 240 * 4
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=steps_per_sim, render_mode="human")
@@ -47,4 +51,5 @@ class Run:
 
 
 if __name__ == '__main__':
-    Run()
+    Run().run_with_model()
+    #Run().run_without_model()

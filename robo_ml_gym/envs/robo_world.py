@@ -11,20 +11,24 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 
+# box dimensions (the area the cube can spawn within)
+BOX_WIDTH = 0.39 / 2
+BOX_LENGTH = 0.58 / 2
+BOX_HEIGHT = 0.18 / 2  # height of the sides of the box from its base
+BOX_OFFSET = 0.008 / 2  # thickness of the sides of the box
+BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
+#BOX_POS = (BOX_WIDTH + 0.42, 0.0, 0.273)  # box above ground and closer to robot
+#BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.12)  # box above ground and closer to robot
+CUBE_DIM = 0.05
+
 
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None, verbose=False, total_steps=None):
+    def __init__(self, render_mode=None, verbose=False, total_steps=None, fname_app=""):
         # box dimensions (the area the cube can spawn within)
-        BOX_WIDTH = 0.39 / 2
-        BOX_LENGTH = 0.58 / 2
-        BOX_HEIGHT = 0.18 / 2  # height of the sides of the box from its base
-        BOX_OFFSET = 0.008 / 2  # thickness of the sides of the box
-        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)
-        CUBE_DIM = 0.05
         FLAT = 0.1  # ToDo: figure out what to do for the regions that are 2D...
-        MAX_EF_HEIGHT = 0.4  # ToDo: this value is debatable, should it be enforced etc?
+        MAX_EF_HEIGHT = 0.6  # ToDo: this value is debatable, should it be enforced etc?
         MAX_JOINT_VEL = 10.0  # max joint velocity
 
         # defines a centre point (x,y,z) and the (w/2,l/2,h/2) for a cube region in space for the possible starting cube
@@ -32,7 +36,7 @@ class RoboWorldEnv(gym.Env):
         self.TARGET_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                        [BOX_WIDTH, BOX_LENGTH*1.6, 0.0+FLAT]], dtype=np.float32)
         self.CUBE_START_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
-                                           [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM]],
+                                           [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM]],  # ToDo: CUBE_DIM / 2
                                           dtype=np.float32)
         self.CUBE_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                      [BOX_WIDTH, BOX_LENGTH*1.6, BOX_HEIGHT*3]], dtype=np.float32)
@@ -80,7 +84,7 @@ class RoboWorldEnv(gym.Env):
         self.render_mode = render_mode  # human or rgb_array
         self.verbose = verbose
         self.verbose_text = ""
-        self.verbose_file = f"models/verbose/{int(time.time())}.txt"
+        self.verbose_file = f"models/verbose/{int(time.time())}-{fname_app}.txt"
         self.resets = 0
         self.cur_steps = 0
         self.steps = 0
@@ -176,13 +180,14 @@ class RoboWorldEnv(gym.Env):
 
         #print(f"ef pos: {pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]}, dist: {self.dist}")
 
-        terminated = self.dist < 0.056
+        terminated = False #self.dist < 0.056
         reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
 
         if terminated:
             reward += 5000
+            self.score += reward
 
         if self.render_mode == "human":
             self._render_frame()
@@ -207,15 +212,16 @@ class RoboWorldEnv(gym.Env):
             time_remaining = int(steps_remaining * (time_elapsed / max(1, self.steps)))
 
         # verbose prints
+        elapsed = int(time.time() - self.start_time)
         self.print_verbose(f"ETA: {time_remaining}s, total_steps: {self.steps}, sim: {self.resets}, "
-                           f"steps: {self.cur_steps}, dist: {self.dist}, score: {self.score}")
+                           f"steps: {self.cur_steps}, dist: {self.dist}, score: {self.score}, elapsed: {elapsed}s")
 
         # reset the robot's position
         pybullet.restoreState(self.init_state)
 
         # set a random position for the cube
         cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
-        cube_pos = np.array((self.CUBE_START_REGION[0]))
+        #cube_pos = np.array((self.CUBE_START_REGION[0]))
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
         pybullet.resetBasePositionAndOrientation(self.cube_id, cube_pos, cube_orn)
         #pybullet.resetBasePositionAndOrientation(self.ef_cube_id, self._end_effector_pos, cube_orn)
@@ -274,11 +280,6 @@ class RoboWorldEnv(gym.Env):
 
         # box (an urdf file will not have accurate hit-boxes as it will fill in the empty space)
         mass = 0
-        BOX_WIDTH = 0.39 / 2
-        BOX_LENGTH = 0.58 / 2
-        BOX_HEIGHT = 0.18 / 2
-        BOX_OFFSET = 0.008 / 2
-        BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)
         shape_types = [pybullet.GEOM_BOX] * 5
         half_extents = [[BOX_WIDTH-BOX_OFFSET, BOX_LENGTH, BOX_OFFSET],
                         [BOX_WIDTH-BOX_OFFSET, BOX_OFFSET, BOX_HEIGHT-BOX_OFFSET],
@@ -326,7 +327,7 @@ class RoboWorldEnv(gym.Env):
         pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=1,
                                        controlMode=pybullet.POSITION_CONTROL, targetPosition=-0.9)
 
-        # wait for the robot to reach it starting position before saving the state
+        # wait for the robot to reach its starting position before saving the state
         for i in range(500):
             pybullet.stepSimulation()
 
