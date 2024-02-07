@@ -4,8 +4,10 @@ from datetime import datetime
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
+
 class Run:
     def __init__(self, total_time_steps=500_000, env=None, model=None):
+        result = {"keyboard_interrupt": False}
         self.total_time_steps = total_time_steps
         file_name_append = "R2"
 
@@ -30,105 +32,109 @@ class Run:
         model_filename = "models/" + fname
         env.set_fname(fname)  # ensure info logs have the same name as the model
 
-        # train model & save it
+        # train model
         self.start_time = time.time()
-        model.learn(total_timesteps=self.total_time_steps)#, callback=self.model_callback)
+        try:
+            model.learn(total_timesteps=self.total_time_steps)#, callback=self.model_callback)
+        except KeyboardInterrupt:
+            result["keyboard_interrupt"] = True
+
+        # save model
         model.save(model_filename)
 
         if env is not None:
             env.close()
 
         print("=== done ===")
+        if result["keyboard_interrupt"]:
+            raise KeyboardInterrupt()
 
     def model_callback(self, state, _):
+        #print("ended - callback")
         #print(time.time() - self.start_time)
         #print(info)
         time_elapsed = time.time() - self.start_time
-        steps_elapsed = state["steps"]
-        steps_remaining = self.total_time_steps - steps_elapsed
-        time_remaining = steps_remaining * (time_elapsed / steps_elapsed)
-        print(f"time remaining: {time_remaining}")
+        #steps_elapsed = state["steps"]
+        #steps_remaining = self.total_time_steps - steps_elapsed
+        #time_remaining = steps_remaining * (time_elapsed / steps_elapsed)
+        #print(f"time remaining: {time_remaining}")
 
 
-def main():
-    #Run()
+class Manager:
+    def __init__(self, model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=False,
+                 vary_learning_rates=False, repeats=3):
+        # selected run options
+        self.model_types_to_run = model_types_to_run
+        self.do_short_time_steps = do_short_time_steps
+        self.vary_max_steps = vary_max_steps
+        self.vary_learning_rates = vary_learning_rates
+        self.repeats = repeats
 
-    env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
-    policy_name = "MultiInputPolicy"
-    models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
-    total_time_steps_dict = {"PPO": 1750, "SAC": 55_000, "A2C": 750_000}
-    repeats = 1
-    #total_time_steps_dict = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
-    lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
-                "SAC": [0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
-                "A2C": [0.0010, 0.0020]}  # A2C  0.00010, 0.0004, 0.0007,
-    max_ep_steps = int(240 * 1.5)
-    #PPO()
-    #SAC()
-    #A2C()
+        # configurations
+        self.env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
+        self.policy_name = "MultiInputPolicy"
+        self.models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
+        self.total_time_steps_dict = {"PPO": 750_000, "SAC": 55_000, "A2C": 750_000}
+        self.total_time_steps_dict_short = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
 
-    #model_name = "SAC"
-    #env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-    #model = SAC.load("models/SAC-v33k-R2-1697786639", env)
-    ##model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
-    #Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
-    #del env, model
-    #exit()
+        if self.do_short_time_steps:
+            self.total_time_steps_dict = self.total_time_steps_dict_short
 
-    max_ep_steps = int(240 * 1.5)
-    """for lr_i in range(len(lrs_dict["PPO"])):
-        for i in range(repeats):
-            # PPO
-            model_name = "PPO"
-            lr = lrs_dict[model_name][lr_i]
-            env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name], fname_app=model_name+"-"+str(lr))
-            model = models_dict[model_name](policy_name, env, learning_rate=lr, verbose=1, device="auto")
-            Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
+        self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
+        if not self.vary_max_steps:
+            self.max_ep_steps_list = [240]
+
+        # learning rates
+        self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
+                         "SAC": [0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
+                         "A2C": [0.0010, 0.0020]}  # A2C  0.00010, 0.0004, 0.0007,
+        if not self.vary_learning_rates:
+            self.lrs_dict = {"PPO": [3e-4], "SAC": [3e-4], "A2C": [7e-4]}
+
+    def run(self):
+        try:
+            for max_ep_steps in self.max_ep_steps_list:
+                for self.lr_i in range(len(self.lrs_dict["PPO"])):
+                    self.max_ep_steps = int(max_ep_steps)
+                    for i in range(self.repeats):
+                        self.run_models()
+
+        except KeyboardInterrupt as err:
+            print(err)
+
+    def run_models(self):
+        # PPO
+        model_name = "PPO"
+        if model_name in self.model_types_to_run:
+            lr = self.lrs_dict[model_name][self.lr_i]
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
+            model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
+            Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
-            # SAC
-            model_name = "SAC"
-            env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name], fname_app=model_name+"-"+str(lr))
-            model = models_dict[model_name](policy_name, env, learning_rate=lr, verbose=1, device="auto")
-            Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
+        # SAC
+        model_name = "SAC"
+        if model_name in self.model_types_to_run:
+            lr = self.lrs_dict[model_name][self.lr_i]
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
+            model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
+            Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
-            # A2C
-            model_name = "A2C"
-            env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name], fname_app=model_name+"-"+str(lr))
-            model = models_dict[model_name](policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
-            Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
+        # A2C
+        model_name = "A2C"
+        if model_name in self.model_types_to_run:
+            lr = self.lrs_dict[model_name][self.lr_i]
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
+            model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
+            Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
-    """
-
-    for max_ep_steps in [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]:
-        max_ep_steps = int(max_ep_steps)
-        for i in range(repeats):
-            # PPO
-            model_name = "PPO"
-            env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-            model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
-            Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
-            del env, model
-
-            ## SAC
-            #model_name = "SAC"
-            #env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-            #model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
-            #Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
-            #del env, model
-#
-            ## A2C
-            #model_name = "A2C"
-            #env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-            #model = models_dict[model_name](policy_name, env, n_steps=5, verbose=1, device="auto")
-            #Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
-            #del env, model
-        max_ep_steps = int(240 * 3)
 
 
 if __name__ == '__main__':
-    main()
+    m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
+                vary_learning_rates=False, repeats=2)
+    m.run()
 
 
 """
@@ -167,4 +173,16 @@ for i in range(100):
     observation, reward, terminated, truncated, info = env.step(action)
 
     if terminated or truncated:
-        observation, info = env.reset()"""
+        observation, info = env.reset()
+
+
+
+#model_name = "SAC"
+#env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
+#model = SAC.load("models/SAC-v33k-R2-1697786639", env)
+##model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
+#Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
+#del env, model
+#exit()
+
+"""
