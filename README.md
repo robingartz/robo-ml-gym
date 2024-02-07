@@ -1,4 +1,4 @@
-# Robo Bin Picking Gym
+# Robo ML Gym
 Reinforcement Learning for Robot Bin-Picking with the ABB 120 Robot  
 using PyBullet Physics Engine and Gymnasium Environment
 
@@ -34,15 +34,15 @@ robo-gym: https://github.com/jr-robotics/robo-gym
 https://gymnasium.farama.org/tutorials/gymnasium_basics/environment_creation/#sphx-glr-tutorials-gymnasium-basics-environment-creation-py  
 $ conda activate gymenv  
 from parent directory:  
-$ pip install -e robo_bin_picking_gym  
-$ cd robo_bin_picking_gym/  
+$ pip install -e robo-ml-gym  
+$ cd robo-ml-gym/  
 $ python3 validation.py
 
 ## PyCharm Setup:
 Set default Python interpreter to gymenv as outlined in:  
 https://stackoverflow.com/questions/42746732/use-conda-environment-in-pycharm/46133678#46133678
 Set Configuration script to: validation.py  
-Working directory: robo_bin_picking_gym  
+Working directory: robo-ml-gym  
 
 ## Also Checkout:
 ### MuJoCo:
