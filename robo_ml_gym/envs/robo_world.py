@@ -101,6 +101,10 @@ class RoboWorldEnv(gym.Env):
         self._target_location = None
         self.prev_dist = self.dist = 0.09
 
+    def set_fname(self, fname):
+        self.fname = fname
+        self.verbose_file = f"models/verbose/{self.fname}.txt"
+
     def print_verbose(self, s):
         if self.verbose:
             self.verbose_text += s + '\n'

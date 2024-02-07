@@ -1,5 +1,6 @@
 import gymnasium as gym
 
+from datetime import datetime
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
@@ -24,8 +25,10 @@ class Run:
         #model = DQN.load("cpm/cartpole-model-dqn-v320k", env)
 
         algo_name = str(model.__class__).split('.')[-1].strip("'>")
-        time_s = int(time.time())
-        model_filename = f"models/{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}"
+        time_s = datetime.now().strftime("%y%m%d_%H%M%S")
+        fname = f"{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}"
+        model_filename = "models/" + fname
+        env.set_fname(fname)  # ensure info logs have the same name as the model
 
         # train model & save it
         self.start_time = time.time()
@@ -53,7 +56,7 @@ def main():
     env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
     policy_name = "MultiInputPolicy"
     models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
-    total_time_steps_dict = {"PPO": 750_000, "SAC": 55_000, "A2C": 750_000}
+    total_time_steps_dict = {"PPO": 1750, "SAC": 55_000, "A2C": 750_000}
     repeats = 1
     #total_time_steps_dict = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
     lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
