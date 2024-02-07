@@ -16,7 +16,7 @@ class Run:
         # load models
         #model = PPO.load("models/PPO-v750k-R2-1697764483", env)
         #model = SAC.load("models/R3.1-vary-lr_ground/SAC-v55k-R2-1697792186", env)
-        model = SAC.load("models/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
+        model = SAC.load("models/old/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
         #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
 
         vec_env = model.get_env()

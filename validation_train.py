@@ -74,12 +74,13 @@ class Manager:
         self.env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
         self.policy_name = "MultiInputPolicy"
         self.models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
+
+        # total time steps
         self.total_time_steps_dict = {"PPO": 750_000, "SAC": 55_000, "A2C": 750_000}
-        self.total_time_steps_dict_short = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
-
         if self.do_short_time_steps:
-            self.total_time_steps_dict = self.total_time_steps_dict_short
+            self.total_time_steps_dict = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
 
+        # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
         if not self.vary_max_steps:
             self.max_ep_steps_list = [240]
