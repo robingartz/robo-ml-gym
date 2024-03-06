@@ -7,17 +7,27 @@ class Run:
     def __init__(self):
         pass
 
-    def run_with_model(self):
+    def run_with_model(self, last=False):
+        last_model_name = ""
+        if last:
+            with open("models/.last_model_name.txt", 'r') as f:
+                last_model_name = f.read()
+            #last_model_name += ".zip"
         sims = 190_000
         total_time_steps = 160_000
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*12, render_mode="human", verbose=True)
 
         # load models
-        #model = PPO.load("models/PPO-v750k-R2-1697764483", env)
-        #model = SAC.load("models/R3.1-vary-lr_ground/SAC-v55k-R2-1697792186", env)
-        model = SAC.load("models/old/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
-        #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
+        model = None
+        if last:
+            print("Loading model:", last_model_name)
+            model = PPO.load("models/"+last_model_name, env)
+        else:
+            model = PPO.load("models/PPO-v50k-R2-240207_190220", env)
+            #model = SAC.load("models/R3.1-vary-lr_ground/SAC-v55k-R2-1697792186", env)
+            #model = SAC.load("models/old/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
+            #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
 
         vec_env = model.get_env()
         obs = vec_env.reset()
@@ -51,5 +61,5 @@ class Run:
 
 
 if __name__ == '__main__':
-    Run().run_with_model()
+    Run().run_with_model(last=True)
     #Run().run_without_model()

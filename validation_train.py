@@ -30,7 +30,9 @@ class Run:
         time_s = datetime.now().strftime("%y%m%d_%H%M%S")
         fname = f"{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}"
         model_filename = "models/" + fname
-        env.set_fname(fname)  # ensure info logs have the same name as the model
+        with open("models/.last_model_name.txt", 'w') as f:
+            f.write(model_filename)
+        env.unwrapped.set_fname(fname)  # ensure info logs have the same name as the model
 
         # train model
         self.start_time = time.time()
@@ -61,7 +63,7 @@ class Run:
 
 
 class Manager:
-    def __init__(self, model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=False,
+    def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=True, vary_max_steps=False,
                  vary_learning_rates=False, repeats=3):
         # selected run options
         self.model_types_to_run = model_types_to_run
@@ -76,7 +78,7 @@ class Manager:
         self.models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
 
         # total time steps
-        self.total_time_steps_dict = {"PPO": 750_000, "SAC": 55_000, "A2C": 750_000}
+        self.total_time_steps_dict = {"PPO": 50_000, "SAC": 55_000, "A2C": 750_000}
         if self.do_short_time_steps:
             self.total_time_steps_dict = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
 
@@ -90,7 +92,7 @@ class Manager:
                          "SAC": [0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
                          "A2C": [0.0010, 0.0020]}  # A2C  0.00010, 0.0004, 0.0007,
         if not self.vary_learning_rates:
-            self.lrs_dict = {"PPO": [3e-4], "SAC": [3e-4], "A2C": [7e-4]}
+            self.lrs_dict = {"PPO": [5e-4], "SAC": [3e-4], "A2C": [7e-4]}
 
     def run(self):
         try:
@@ -133,8 +135,10 @@ class Manager:
 
 
 if __name__ == '__main__':
-    m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
-                vary_learning_rates=False, repeats=2)
+    #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
+    #            vary_learning_rates=False, repeats=2)
+    m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, vary_max_steps=False,
+                vary_learning_rates=False, repeats=1)
     m.run()
 
 
