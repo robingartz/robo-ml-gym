@@ -139,18 +139,18 @@
 
   <link name="link_6">
     <visual>
-      <origin rpy="0 0 0" xyz="-0.013 0 0"/>
+      <origin rpy="0 0 0" xyz="-0.011 0 0"/>
       <geometry>
-        <mesh filename="robo_ml_gym/models/irb120/visual/link_6_ef.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_6_ef_short.stl"/>
       </geometry>
       <material name="yellow">
         <color rgba="0.7 0.7 0 1"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="-0.013 0 0"/>
+      <origin rpy="0 0 0" xyz="-0.011 0 0"/>
       <geometry>
-        <mesh filename="robo_ml_gym/models/irb120/collision/link_6_ef.stl"/>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_6_ef_short.stl"/>
       </geometry>
       <material name="yellow"/>
     </collision>
@@ -158,7 +158,31 @@
       <mass value="0.0136784407912"/>
       <inertia ixx="1.65768910842e-06" ixy="-3.0670406059e-12" ixz="8.9225606574e-11" iyy="1.69424824883e-06" iyz="-7.6624364717e-09" izz="2.9767913551e-06"/>
       <origin rpy="0 0 0" xyz="-4.42649390919e-07 0.000169444143624 -0.0070610831163"/>
-    </inertial>    
+    </inertial>
+  </link>
+
+  <link name="link_7">
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.011 0 0"/>
+      <geometry>
+        <mesh filename="robo_ml_gym/models/irb120/visual/link_7_ef.stl"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 0.6 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.011 0 0"/>
+      <geometry>
+        <mesh filename="robo_ml_gym/models/irb120/collision/link_7_ef.stl"/>
+      </geometry>
+      <material name="orange"/>
+    </collision>
+    <inertial>
+      <mass value="0.0136784407912"/>
+      <inertia ixx="1.0e-15" ixy="1.0e-15" ixz="1.0e-15" iyy="1.0e-15" iyz="1.0e-15" izz="1.0e-15"/>
+      <origin rpy="0 0 0" xyz="1.0e-15 1.0e-15 1.0e-15"/>
+    </inertial>
   </link>
 
   <joint name="joint_1" type="revolute">
@@ -200,6 +224,13 @@
     <origin rpy="0 0 0" xyz="0.072 0 0"/>
     <parent link="link_5"/>
     <child link="link_6"/>
+    <limit effort="0" lower="-6.98132" upper="6.98132" velocity="7.33038"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  <joint name="joint_7" type="fixed">
+    <origin rpy="0 0 0" xyz="0.223 0 0"/>
+    <parent link="link_6"/>
+    <child link="link_7"/>
     <limit effort="0" lower="-6.98132" upper="6.98132" velocity="7.33038"/>
     <axis xyz="1 0 0"/>
   </joint>

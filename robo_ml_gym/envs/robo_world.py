@@ -36,7 +36,7 @@ class RoboWorldEnv(gym.Env):
         self.TARGET_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                        [BOX_WIDTH, BOX_LENGTH*1.6, 0.0+FLAT]], dtype=np.float32)
         self.CUBE_START_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
-                                           [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM]],  # ToDo: CUBE_DIM / 2
+                                           [BOX_WIDTH-CUBE_DIM, BOX_LENGTH-CUBE_DIM, BOX_HEIGHT-CUBE_DIM/2]],  # ToDo: CUBE_DIM / 2
                                           dtype=np.float32)
         self.CUBE_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                      [BOX_WIDTH, BOX_LENGTH*1.6, BOX_HEIGHT*3]], dtype=np.float32)
@@ -62,6 +62,7 @@ class RoboWorldEnv(gym.Env):
         # the cube's location and target location
         # each joint is between the min and max positions for the joint
         # the positions are a region in space encoded as the min(x,y,z) and max(x,y,z) for the box's region
+        self.holding_cube = False
         self.observation_space = spaces.Dict(
             {
                 "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),  # ToDo: update limits according to getJointInfo() values
@@ -115,7 +116,16 @@ class RoboWorldEnv(gym.Env):
 
     def _update_dist(self):
         self.prev_dist = self.dist
-        self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos))
+        if self.holding_cube:  # distance from ef to target_location
+            self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos)) - CUBE_DIM
+        else:  # distance from ef to cube
+            self.dist = abs(np.linalg.norm(self.cube_pos - self._end_effector_pos))
+
+    def _get_centre_pos(self, region_low, region_high):
+        pos = np.array([(region_low[0] + region_high[0]) / 2,
+                        (region_low[1] + region_high[1]) / 2,
+                        (region_low[2] + region_high[2]) / 2])
+        return pos
 
     def _get_rnd_pos(self, region_low, region_high):
         pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
@@ -143,9 +153,6 @@ class RoboWorldEnv(gym.Env):
             self._setup()
 
         if self.render_mode == "human":
-            ...
-
-        if self.render_mode == "human":
             time.sleep(1.0/240.0)
 
     def _get_obs(self):
@@ -157,32 +164,37 @@ class RoboWorldEnv(gym.Env):
 
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
-            self.robot_id, range(self.joints_count))], dtype=np.float32)
-        cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
+            self.robot_id, range(0, 0+self.joints_count))], dtype=np.float32)
+        self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
 
         observations = {
             "joints": joint_positions,
             "end_effector_pos": self._end_effector_pos,
-            "cube_pos": np.array(cube_pos, dtype=np.float32),
+            "cube_pos": np.array(self.cube_pos, dtype=np.float32),
             "target_pos": np.array(self._target_location, dtype=np.float32)
         }
 
-        #print(observations)
         return observations
 
     def step(self, action):
         # move joints
-        for joint in range(self.joints_count):
-            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint,
-                                           controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint])
+        #for joint in range(0, 0+self.joints_count):
+        #    pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint,
+        #                                   controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint])
 
         pybullet.stepSimulation()
 
         # ToDo: below is wrong, this is the joint position, but it should be the end effector position
+        #self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, 5+self.joints_count-1)[0], dtype=np.float32)
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
         self._update_dist()
 
-        #print(f"ef pos: {pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]}, dist: {self.dist}")
+        print(f"ef pos: {pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]}, dist: {self.dist}")
+
+        if self.dist < CUBE_DIM and not self.holding_cube:
+            self.holding_cube = True
+            pybullet.createConstraint(self.robot_id, self.joints_count-1, self.cube_id, -1, pybullet.JOINT_FIXED,
+                                      [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
         terminated = False #self.dist < 0.056
         reward = self._get_reward()
@@ -224,15 +236,17 @@ class RoboWorldEnv(gym.Env):
         pybullet.restoreState(self.init_state)
 
         # set a random position for the cube
-        cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+        #cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+        self.cube_pos = self._get_centre_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
         #cube_pos = np.array((self.CUBE_START_REGION[0]))
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
-        pybullet.resetBasePositionAndOrientation(self.cube_id, cube_pos, cube_orn)
+        pybullet.resetBasePositionAndOrientation(self.cube_id, self.cube_pos, cube_orn)
         #pybullet.resetBasePositionAndOrientation(self.ef_cube_id, self._end_effector_pos, cube_orn)
 
         # set a random position for the target location
         #self._target_location = self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
         self._target_location = np.array((self.TARGET_REGION[0]))
+        #self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, 5+self.joints_count-1)[0], dtype=np.float32)
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
         observation = self._get_obs()
@@ -303,7 +317,7 @@ class RoboWorldEnv(gym.Env):
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
         mass = 0.03
         self.cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.CUBE_REGION[0])#[0.70, 0.0, 0.70])
-        cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
+        self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
         #print("(0) cube_pos, cube_orn:", cube_pos, cube_orn)
 
         #for i in range(200):
@@ -321,6 +335,8 @@ class RoboWorldEnv(gym.Env):
         self.robot_id = pybullet.loadURDF(urdf_path, basePosition=start_pos, baseOrientation=start_orientation,
                                           useFixedBase=1, flags=pybullet.URDF_MAINTAIN_LINK_ORDER)
         self.joints_count = pybullet.getNumJoints(self.robot_id)
+        #self.joints_count = 1
+
         #print(pybullet.getJointInfo(self.robot_id, 0))
         # (0, b'joint_1', 0, 7, 6, 1, 0.0, 0.0, -2.87979, 2.87979, 0.0, 4.36332, b'link_1', (0.0, 0.0, 1.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0), -1)
 
@@ -329,7 +345,7 @@ class RoboWorldEnv(gym.Env):
 
         # was used in first round of simulations:
         pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=1,
-                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=-0.9)
+                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=+0.1) #-0.9
 
         # wait for the robot to reach its starting position before saving the state
         for i in range(500):
