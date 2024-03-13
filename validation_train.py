@@ -1,6 +1,7 @@
 import gymnasium as gym
 
 from datetime import datetime
+import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
@@ -11,7 +12,7 @@ class Run:
         self.total_time_steps = total_time_steps
         file_name_append = "R2"
 
-        #env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps=self.total_time_steps)
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps=self.total_time_steps)
 
         # create new models
         #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
@@ -60,6 +61,56 @@ class Run:
         #steps_remaining = self.total_time_steps - steps_elapsed
         #time_remaining = steps_remaining * (time_elapsed / steps_elapsed)
         #print(f"time remaining: {time_remaining}")
+
+
+def get_model_name(model, total_time_steps, file_name_append="R2"):
+    algo_name = str(model.__class__).split('.')[-1].strip("'>")
+    time_s = datetime.now().strftime("%y%m%d_%H%M%S")
+    name = f"{algo_name}-v{int(total_time_steps/1000)}k-{file_name_append}-{time_s}"
+    model_filename = "models/" + name
+    return model_filename
+
+
+def save_model_name(path):
+    with open("models/.last_model_name.txt", 'w') as f:
+        f.write(path)
+
+
+def save_model(env, model, model_filename):
+    model.save(model_filename)
+    time.sleep(0.1)
+    save_model_name(model_filename)
+    # ensure info logs (verbose) have the same name as the model
+    env.unwrapped.set_fname(model_filename.strip("models/"))
+
+
+def train_last_model(total_time_steps=30_000):
+    with open("models/.last_model_name.txt", 'r') as f:
+        model_name = f.readline().strip('\n')
+
+    # get the number of steps previously taken while training this model
+    prev_steps = int(re.search("-v([0-9]*)k-", model_name).group()[2:-2]) * 1_000
+
+    env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
+                   max_episode_steps=240*4,
+                   verbose=True,
+                   total_steps=total_time_steps)
+
+    # load and train model
+    model = PPO.load(model_name, env)
+
+    try:
+        model.learn(total_timesteps=total_time_steps)
+    except KeyboardInterrupt as err:
+        print(err)
+
+    # save model
+    # TODO: total_time_steps may be incorrect if training interrupted
+    model_filename = get_model_name(model, prev_steps + total_time_steps)
+    save_model(env, model, model_filename)
+
+    if env is not None:
+        env.close()
 
 
 class Manager:
@@ -137,9 +188,13 @@ class Manager:
 if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
-    m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, vary_max_steps=False,
-                vary_learning_rates=False, repeats=1)
-    m.run()
+
+    #m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, vary_max_steps=False,
+    #            vary_learning_rates=False, repeats=1)
+    #m.run()
+
+    # run previously trained model
+    train_last_model()
 
 
 """
