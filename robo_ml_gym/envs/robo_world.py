@@ -101,6 +101,7 @@ class RoboWorldEnv(gym.Env):
         self._end_effector_pos = None
         self._target_location = None
         self.prev_dist = self.dist = 0.09
+        self.cube_constraint_id = None
 
     def set_fname(self, fname):
         self.fname = fname
@@ -164,7 +165,7 @@ class RoboWorldEnv(gym.Env):
 
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
-            self.robot_id, range(0, 0+self.joints_count))], dtype=np.float32)
+            self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
         self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
 
         observations = {
@@ -178,9 +179,9 @@ class RoboWorldEnv(gym.Env):
 
     def step(self, action):
         # move joints
-        #for joint in range(0, 0+self.joints_count):
-        #    pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint,
-        #                                   controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint])
+        for joint_index in range(0, 0+self.joints_count-1):
+            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+                                           controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
 
         pybullet.stepSimulation()
 
@@ -193,8 +194,9 @@ class RoboWorldEnv(gym.Env):
 
         if self.dist < CUBE_DIM and not self.holding_cube:
             self.holding_cube = True
-            pybullet.createConstraint(self.robot_id, self.joints_count-1, self.cube_id, -1, pybullet.JOINT_FIXED,
-                                      [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+            self.cube_constraint_id = pybullet.createConstraint(self.robot_id, self.joints_count-1,
+                                                                self.cube_id, -1, pybullet.JOINT_FIXED,
+                                                                [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
         terminated = False #self.dist < 0.056
         reward = self._get_reward()
@@ -234,6 +236,12 @@ class RoboWorldEnv(gym.Env):
 
         # reset the robot's position
         pybullet.restoreState(self.init_state)
+
+        # remove the cube to EF constraint
+        self.holding_cube = False
+        self.prev_dist = self.dist = 0.5
+        if self.cube_constraint_id is not None:
+            pybullet.removeConstraint(self.cube_constraint_id)
 
         # set a random position for the cube
         #cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
@@ -345,7 +353,7 @@ class RoboWorldEnv(gym.Env):
 
         # was used in first round of simulations:
         pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=1,
-                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=+0.1) #-0.9
+                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=-0.9)
 
         # wait for the robot to reach its starting position before saving the state
         for i in range(500):
