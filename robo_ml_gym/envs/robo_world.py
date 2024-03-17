@@ -96,6 +96,7 @@ class RoboWorldEnv(gym.Env):
 
         self.physics_client = None
         self.cube_id = None
+        self.target_id = None
         self.robot_id = None
         self.joints_count = None
         self._end_effector_pos = None
@@ -119,6 +120,8 @@ class RoboWorldEnv(gym.Env):
         self.prev_dist = self.dist
         if self.holding_cube:  # distance from ef to target_location
             self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos)) - CUBE_DIM
+            if self.dist < CUBE_DIM:
+                self.reached_target_with_cube = True
         else:  # distance from ef to cube
             self.dist = abs(np.linalg.norm(self.cube_pos - self._end_effector_pos))
 
@@ -139,6 +142,12 @@ class RoboWorldEnv(gym.Env):
         # reward closer distance to cube (proportional reward)
         #reward = 1 / max(self.dist**2, 0.05**2)
         reward = 1 / max(self.dist, 0.05 / 2)
+        if self.holding_cube:
+            reward += 5
+        if self.dist > self.prev_dist:
+            reward -= 10
+        #if self.reached_target_with_cube:
+        #    reward += 2
         # reward moving closer to cube than previous timestep
         #reward = 1.5 if self.dist < self.prev_dist else -1.5
         #print("dist:", self.dist, " reward:", reward)
@@ -181,7 +190,7 @@ class RoboWorldEnv(gym.Env):
         # move joints
         for joint_index in range(0, 0+self.joints_count-1):
             pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-                                           controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
+                                           controlMode=pybullet.POSITION_CONTROL, targetVelocity=action[joint_index]) # VELOCITY_CONTROL
 
         pybullet.stepSimulation()
 
@@ -239,9 +248,11 @@ class RoboWorldEnv(gym.Env):
 
         # remove the cube to EF constraint
         self.holding_cube = False
+        self.reached_target_with_cube = False
         self.prev_dist = self.dist = 0.5
         if self.cube_constraint_id is not None:
             pybullet.removeConstraint(self.cube_constraint_id)
+            self.cube_constraint_id = None
 
         # set a random position for the cube
         #cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
@@ -252,8 +263,9 @@ class RoboWorldEnv(gym.Env):
         #pybullet.resetBasePositionAndOrientation(self.ef_cube_id, self._end_effector_pos, cube_orn)
 
         # set a random position for the target location
-        #self._target_location = self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
-        self._target_location = np.array((self.TARGET_REGION[0]))
+        self._target_location = self.get_new_target_location()
+        if self.render_mode == "human":
+            pybullet.resetBasePositionAndOrientation(self.target_id, self._target_location, cube_orn)
         #self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, 5+self.joints_count-1)[0], dtype=np.float32)
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
@@ -284,13 +296,15 @@ class RoboWorldEnv(gym.Env):
         if self.render_mode == "human":
             # baseplate
             plate_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.1, 0.45])
-            mass = 0
-            pybullet.createMultiBody(mass, plate_id, basePosition=[-0.01, 0.0, 0.45])
+            pybullet.createMultiBody(0, plate_id, basePosition=[-0.01, 0.0, 0.45])
 
             # ABB circuit box
             abb_box_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.1, 0.2, 0.1])
-            mass = 0
-            pybullet.createMultiBody(mass, abb_box_id, basePosition=[0.1, 0.1, 0.1])
+            pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
+
+            # target location
+            target_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01])#, visualFramePosition=self._target_location)
+            self.target_id = pybullet.createMultiBody(0, target_id, basePosition=self.get_new_target_location())
 
             # cube to show where "EF" position is
             #self.ef_cube_id = pybullet.createVisualShape(shapeType=pybullet.GEOM_BOX,
