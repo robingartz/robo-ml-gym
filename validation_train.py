@@ -31,8 +31,8 @@ class Run:
         time_s = datetime.now().strftime("%y%m%d_%H%M%S")
         fname = f"{algo_name}-v{int(self.total_time_steps/1000)}k-{file_name_append}-{time_s}"
         model_filename = "models/" + fname
-        with open("models/.last_model_name.txt", 'w') as f:
-            f.write(model_filename)
+        with open("models/.last_model_name.txt", 'a') as f:
+            f.write('\n' + model_filename)
         env.unwrapped.set_fname(fname)  # ensure info logs have the same name as the model
 
         # train model
@@ -72,7 +72,7 @@ def get_model_name(model, total_time_steps, file_name_append="R2"):
 
 
 def save_model_name(path):
-    with open("models/.last_model_name.txt", 'w') as f:
+    with open("models/.last_model_name.txt", 'a') as f:
         f.write(path)
 
 
@@ -84,20 +84,35 @@ def save_model(env, model, model_filename):
     env.unwrapped.set_fname(model_filename.strip("models/"))
 
 
-def train_last_model(total_time_steps=30_000):
+def train_last_model(total_time_steps=30_000, max_episode_steps=240*4):
+    last = True
+    model = None
+    last_model_names = []
     with open("models/.last_model_name.txt", 'r') as f:
-        model_name = f.readline().strip('\n')
-
-    # get the number of steps previously taken while training this model
-    prev_steps = int(re.search("-v([0-9]*)k-", model_name).group()[2:-2]) * 1_000
+        last_model_names = f.readlines()
 
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
-                   max_episode_steps=240*4,
+                   max_episode_steps=max_episode_steps,
                    verbose=True,
                    total_steps=total_time_steps)
 
-    # load and train model
-    model = PPO.load(model_name, env)
+    last_model_names.reverse()
+    for last_model_name in last_model_names:
+        print("Loading model:", last_model_name)
+        last_model_name = last_model_name.strip('\n')
+
+        try:
+            # get the number of steps previously taken while training this model
+            prev_steps = int(re.search("-v([0-9]*)k-", last_model_name).group()[2:-2]) * 1_000
+
+            # load and train model
+            model = PPO.load(last_model_name, env)
+            break
+        except:
+            pass
+
+    model_filename = get_model_name(model, prev_steps + total_time_steps)
+    env.unwrapped.set_fname(model_filename.strip("models/"))  # ensure info logs have the same name as the model
 
     try:
         model.learn(total_timesteps=total_time_steps)
@@ -115,7 +130,7 @@ def train_last_model(total_time_steps=30_000):
 
 class Manager:
     def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=True, vary_max_steps=False,
-                 vary_learning_rates=False, repeats=3):
+                 vary_learning_rates=False, repeats=1, total_steps=None):
         # selected run options
         self.model_types_to_run = model_types_to_run
         self.do_short_time_steps = do_short_time_steps
@@ -129,9 +144,12 @@ class Manager:
         self.models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
 
         # total time steps
-        self.total_time_steps_dict = {"PPO": 50_000, "SAC": 55_000, "A2C": 750_000}
+        self.total_time_steps_dict = {"PPO": 5_000, "SAC": 1_000, "A2C": 750_000}
         if self.do_short_time_steps:
-            self.total_time_steps_dict = {"PPO": 2_000, "SAC": 700, "A2C": 2_000}
+            self.total_time_steps_dict = {"PPO": 6_000, "SAC": 700, "A2C": 2_000}
+        if total_steps is not None:
+            for key in self.total_time_steps_dict.keys():
+                self.total_time_steps_dict[key] = total_steps
 
         # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
@@ -146,6 +164,7 @@ class Manager:
             self.lrs_dict = {"PPO": [5e-4], "SAC": [3e-4], "A2C": [7e-4]}
 
     def run(self):
+        print(f"running training for: {self.model_types_to_run} for: {self.total_time_steps_dict} steps")
         try:
             for max_ep_steps in self.max_ep_steps_list:
                 for self.lr_i in range(len(self.lrs_dict["PPO"])):
@@ -161,8 +180,11 @@ class Manager:
         model_name = "PPO"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
+            #PPO(n_steps=2048, batch_size=64, n_epochs=10)
             env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
+            # ensure info logs have the same name as the model
+            env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
@@ -172,6 +194,8 @@ class Manager:
             lr = self.lrs_dict[model_name][self.lr_i]
             env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
+            # ensure info logs have the same name as the model
+            env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
@@ -181,6 +205,8 @@ class Manager:
             lr = self.lrs_dict[model_name][self.lr_i]
             env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
+            # ensure info logs have the same name as the model
+            env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
@@ -189,12 +215,11 @@ if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    #m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, vary_max_steps=False,
-    #            vary_learning_rates=False, repeats=1)
-    #m.run()
+    m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, total_steps=400_000)
+    m.run()
 
     # run previously trained model
-    train_last_model()
+    #train_last_model(total_time_steps=500_000, max_episode_steps=240*2)
 
 
 """
