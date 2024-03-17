@@ -20,12 +20,13 @@ BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
 #BOX_POS = (BOX_WIDTH + 0.42, 0.0, 0.273)  # box above ground and closer to robot
 #BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.12)  # box above ground and closer to robot
 CUBE_DIM = 0.05
+REL_MAX_DIS = 2.0
 
 
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None, verbose=False, total_steps=None, fname_app=""):
+    def __init__(self, render_mode=None, verbose=True, save_verbose=True, total_steps=None, fname_app="_"):
         # box dimensions (the area the cube can spawn within)
         FLAT = 0.1  # ToDo: figure out what to do for the regions that are 2D...
         MAX_EF_HEIGHT = 0.6  # ToDo: this value is debatable, should it be enforced etc?
@@ -33,6 +34,8 @@ class RoboWorldEnv(gym.Env):
 
         # defines a centre point (x,y,z) and the (w/2,l/2,h/2) for a cube region in space for the possible starting cube
         # position and target position
+        self.REL_REGION_LOW = np.array([-REL_MAX_DIS, -REL_MAX_DIS, -REL_MAX_DIS])
+        self.REL_REGION_HIGH = np.array([REL_MAX_DIS, REL_MAX_DIS, REL_MAX_DIS])
         self.TARGET_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
                                        [BOX_WIDTH, BOX_LENGTH*1.6, 0.0+FLAT]], dtype=np.float32)
         self.CUBE_START_REGION = np.array([[BOX_POS[0], BOX_POS[1], BOX_POS[2]+BOX_HEIGHT],
@@ -63,18 +66,26 @@ class RoboWorldEnv(gym.Env):
         # each joint is between the min and max positions for the joint
         # the positions are a region in space encoded as the min(x,y,z) and max(x,y,z) for the box's region
         self.holding_cube = False
+        self.reached_target_with_cube = False
+        #self.observation_space = spaces.Dict(
+        #    {
+        #        "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),  # ToDo: update limits according to getJointInfo() values
+        #        "end_effector_pos": spaces.Box(self.TARGET_REGION_LOW, self.END_EFFECTOR_REGION_HIGH, shape=(3,), dtype=np.float32),
+        #        "cube_pos": spaces.Box(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH, shape=(3,), dtype=np.float32),
+        #        #"target_pos": spaces.Box(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH, shape=(3,), dtype=np.float32)
+        #    }
+        #)
         self.observation_space = spaces.Dict(
             {
                 "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),  # ToDo: update limits according to getJointInfo() values
-                "end_effector_pos": spaces.Box(self.TARGET_REGION_LOW, self.END_EFFECTOR_REGION_HIGH, shape=(3,), dtype=np.float32),
-                "cube_pos": spaces.Box(self.CUBE_REGION_LOW, self.CUBE_REGION_HIGH, shape=(3,), dtype=np.float32),
-                "target_pos": spaces.Box(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH, shape=(3,), dtype=np.float32)
+                "rel_pos": spaces.Box(self.REL_REGION_LOW, self.REL_REGION_HIGH, shape=(3,), dtype=np.float32)
             }
         )
 
         # we have 6 actions, corresponding to the angles of the six joints
         # ToDo: are we controlling velocity or position or torque of the joints?
-        self.action_space = spaces.Box(-MAX_JOINT_VEL, MAX_JOINT_VEL, shape=(6,), dtype=np.float32)
+        #self.action_space = spaces.Box(-MAX_JOINT_VEL, MAX_JOINT_VEL, shape=(6,), dtype=np.float32)
+        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
 
         #self._action_to_angle_cmd = {
         #    0: np.array([1, 0]),
@@ -84,7 +95,9 @@ class RoboWorldEnv(gym.Env):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # human or rgb_array
         self.verbose = verbose
+        self.save_verbose = save_verbose
         self.verbose_text = ""
+        self.v_txt = "_"
         self.verbose_file = f"models/verbose/{int(time.time())}-{fname_app}.txt"
         self.resets = 0
         self.cur_steps = 0
@@ -109,15 +122,17 @@ class RoboWorldEnv(gym.Env):
         self.verbose_file = f"models/verbose/{self.fname}.txt"
 
     def print_verbose(self, s):
-        if self.verbose:
-            self.verbose_text += s + '\n'
-            print(s)
+        if self.save_verbose:
+            with open(self.verbose_file, 'a') as f:
+                f.write(s + '\n')
+            #self.v_txt += s + '\n'
+            #self.verbose_text += s + '\n'
+            #print("here:", self.verbose_text)
 
     def _get_info(self):
         return {"step": self.steps, "cur_steps": self.cur_steps, "distance": np.linalg.norm(self._target_location, ord=1)}
 
     def _update_dist(self):
-        self.prev_dist = self.dist
         if self.holding_cube:  # distance from ef to target_location
             self.dist = abs(np.linalg.norm(self._target_location - self._end_effector_pos)) - CUBE_DIM
             if self.dist < CUBE_DIM:
@@ -129,7 +144,18 @@ class RoboWorldEnv(gym.Env):
         pos = np.array([(region_low[0] + region_high[0]) / 2,
                         (region_low[1] + region_high[1]) / 2,
                         (region_low[2] + region_high[2]) / 2])
-        return pos
+        return self._get_rnd_pos(region_low, region_high)
+        #return pos
+
+    def get_new_target_location(self):
+        return self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+
+        #target_location = self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH)
+        #target_location = np.array((self.TARGET_REGION[0]))
+        #target_location = np.array([self.TARGET_REGION[0][0], self.TARGET_REGION[0][0], self.TARGET_REGION[0][0]])
+        target_location = np.array((self.TARGET_REGION_LOW))
+        self._get_centre_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+        return target_location
 
     def _get_rnd_pos(self, region_low, region_high):
         pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
@@ -151,7 +177,12 @@ class RoboWorldEnv(gym.Env):
         # reward moving closer to cube than previous timestep
         #reward = 1.5 if self.dist < self.prev_dist else -1.5
         #print("dist:", self.dist, " reward:", reward)
+        reward = 0
+        reward += 1 / abs(self.cube_pos[0] - self._end_effector_pos[0])
+        reward += 1 / abs(self.cube_pos[1] - self._end_effector_pos[1])
+        reward += 1 / abs(self.cube_pos[2] - self._end_effector_pos[2])
         self.score += reward
+        self.prev_dist = self.dist
         return reward
 
     def render(self):
@@ -177,11 +208,18 @@ class RoboWorldEnv(gym.Env):
             self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
         self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
 
+        #observations = {
+        #    "joints": joint_positions,
+        #    "end_effector_pos": self._end_effector_pos,
+        #    "cube_pos": np.array(self.cube_pos, dtype=np.float32),
+        #    #"target_pos": np.array(self._target_location, dtype=np.float32)
+        #}
+        rel_pos = self._end_effector_pos - self.cube_pos
+        np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
+        rel_pos = rel_pos.astype("float32")
         observations = {
             "joints": joint_positions,
-            "end_effector_pos": self._end_effector_pos,
-            "cube_pos": np.array(self.cube_pos, dtype=np.float32),
-            "target_pos": np.array(self._target_location, dtype=np.float32)
+            "rel_pos": rel_pos
         }
 
         return observations
@@ -199,7 +237,7 @@ class RoboWorldEnv(gym.Env):
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
         self._update_dist()
 
-        print(f"ef pos: {pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]}, dist: {self.dist}")
+        #print(f"ef pos: {pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]}, dist: {self.dist}")
 
         if self.dist < CUBE_DIM and not self.holding_cube:
             self.holding_cube = True
@@ -376,8 +414,9 @@ class RoboWorldEnv(gym.Env):
         self.init_state = pybullet.saveState()
 
     def close(self):
+        #print("verb1:", self.verbose_text)
+        #with open(self.verbose_file, 'w') as f:
+        #    f.write(self.v_txt)
         if self.physics_client is not None:
             #robot_pos, robot_orn = pybullet.getBasePositionAndOrientation(self.robot_id)
             pybullet.disconnect()
-        with open(self.verbose_file, 'w') as f:
-            f.write(self.verbose_text)
