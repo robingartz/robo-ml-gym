@@ -86,7 +86,8 @@ class RoboWorldEnv(gym.Env):
         # we have 6 actions, corresponding to the angles of the six joints
         # ToDo: are we controlling velocity or position or torque of the joints?
         #self.action_space = spaces.Box(-MAX_JOINT_VEL, MAX_JOINT_VEL, shape=(6,), dtype=np.float32)
-        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
+        #self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
+        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(4,), dtype=np.float32)
 
         #self._action_to_angle_cmd = {
         #    0: np.array([1, 0]),
@@ -243,6 +244,7 @@ class RoboWorldEnv(gym.Env):
             time.sleep(1.0/240.0)
 
     def _get_obs(self):
+        """returns the observation space: array of joint positions and the distance between EF and target"""
         #joints_info = []
         #_jointIndexIdx = 0
         #_jointNameIdx = 1
@@ -272,10 +274,15 @@ class RoboWorldEnv(gym.Env):
         return observations
 
     def step(self, action):
+        """move joints, step physics sim, check gripper, return obs, reward, termination"""
         # move joints
-        for joint_index in range(0, 0+self.joints_count-1):
-            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-                                           controlMode=pybullet.POSITION_CONTROL, targetVelocity=action[joint_index]) # VELOCITY_CONTROL
+        #for joint_index in range(0, 0+self.joints_count-1):
+        for joint_index in range(0, 0 + self.joints_count - 1 - 2):
+            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+            #                               controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
+            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+            #                               controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
+            ...
 
         pybullet.stepSimulation()
 
@@ -321,6 +328,7 @@ class RoboWorldEnv(gym.Env):
         return observation, reward, terminated, False, info
 
     def reset(self, seed=None, options=None):
+        """resets the robot position, cube position, score and gripper states"""
         # we need the following line to seed self.np_random
         super().reset(seed=seed)
 
@@ -386,7 +394,7 @@ class RoboWorldEnv(gym.Env):
         return observation, info
 
     def _setup(self):
-        # pybullet setup
+        """pybullet setup"""
         self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
 
@@ -463,28 +471,14 @@ class RoboWorldEnv(gym.Env):
         self.joints_count = pybullet.getNumJoints(self.robot_id)
         #self.joints_count = 1
 
-        #print(pybullet.getJointInfo(self.robot_id, 0))
-        # (0, b'joint_1', 0, 7, 6, 1, 0.0, 0.0, -2.87979, 2.87979, 0.0, 4.36332, b'link_1', (0.0, 0.0, 1.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0), -1)
-
-        # set the center of mass frame (loadURDF sets base link frame) start_pos/Orn
-        #pybullet.resetBasePositionAndOrientation(self.robot_id, start_pos, start_orientation)
-
-        # was used in first round of simulations:
-        pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=1,
-                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=-0.9) #-0.9
-        pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=2,
-                                       controlMode=pybullet.POSITION_CONTROL, targetPosition=-0.9)
-
-        # wait for the robot to reach its starting position before saving the state
-        for i in range(2500):
-            pybullet.stepSimulation()
+        # set the initial joint starting positions
+        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.4, targetVelocity=0)
+        #pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=-0.9, targetVelocity=0)
 
         self.init_state = pybullet.saveState()
 
     def close(self):
-        #print("verb1:", self.verbose_text)
         #with open(self.verbose_file, 'w') as f:
         #    f.write(self.v_txt)
         if self.physics_client is not None:
-            #robot_pos, robot_orn = pybullet.getBasePositionAndOrientation(self.robot_id)
             pybullet.disconnect()
