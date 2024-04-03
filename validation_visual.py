@@ -4,8 +4,8 @@ from stable_baselines3 import A2C, PPO, SAC
 
 
 class Run:
-    def __init__(self):
-        pass
+    def __init__(self, constant_cube_spawn=False):
+        self.constant_cube_spawn = constant_cube_spawn
 
     def run_with_model(self, last_model_name=""):
         last = False
@@ -16,8 +16,8 @@ class Run:
         sims = 190_000
         total_time_steps = 160_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*5, render_mode="human",
-                       verbose=True, save_verbose=False)
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, render_mode="human",
+                       verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
 
         # load models
         model = None
@@ -37,6 +37,7 @@ class Run:
             #model = SAC.load("models/old/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
             #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
 
+        print(model.policy)
         vec_env = model.get_env()
         obs = vec_env.reset()
         score = 0
@@ -52,8 +53,9 @@ class Run:
 
     def run_without_model(self):
         sims = 18
-        steps_per_sim = 240 * 1
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=steps_per_sim, render_mode="human")
+        steps_per_sim = 240 * 4
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=steps_per_sim, render_mode="human",
+                       save_verbose=False)
 
         observation, info = env.reset()#seed=42)
         for sim in range(sims):
@@ -69,5 +71,5 @@ class Run:
 
 
 if __name__ == '__main__':
-    Run().run_with_model()
+    Run(constant_cube_spawn=False).run_with_model()
     #Run().run_without_model()
