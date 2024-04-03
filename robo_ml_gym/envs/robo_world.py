@@ -245,23 +245,12 @@ class RoboWorldEnv(gym.Env):
 
     def _get_obs(self):
         """returns the observation space: array of joint positions and the distance between EF and target"""
-        #joints_info = []
-        #_jointIndexIdx = 0
-        #_jointNameIdx = 1
-        #_parentFramePosIdx = 14
-        #joints_info = [pybullet.getJointInfo(self.robot_id, joint_num)[_parentFramePosIdx] for joint_num in range(joints_count)]
 
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
             self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
         self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
 
-        #observations = {
-        #    "joints": joint_positions,
-        #    "end_effector_pos": self._end_effector_pos,
-        #    "cube_pos": np.array(self.cube_pos, dtype=np.float32),
-        #    #"target_pos": np.array(self._target_location, dtype=np.float32)
-        #}
         rel_pos = self._end_effector_pos - self.cube_pos
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
@@ -269,7 +258,6 @@ class RoboWorldEnv(gym.Env):
             "joints": joint_positions,
             "rel_pos": rel_pos
         }
-        #print(self.holding_cube, self.dist, rel_pos)
 
         return observations
 
@@ -367,18 +355,15 @@ class RoboWorldEnv(gym.Env):
             self.cube_pos = self._get_const_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
         else:
             self.cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
-        #print(self.steps, self.cube_pos)
 
         # set cube orientation and position
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
         pybullet.resetBasePositionAndOrientation(self.cube_id, self.cube_pos, cube_orn)
-        #pybullet.resetBasePositionAndOrientation(self.ef_cube_id, self._end_effector_pos, cube_orn)
 
         # set a random position for the target location
         self._target_location = self.get_new_target_location()
         if self.render_mode == "human":
             pybullet.resetBasePositionAndOrientation(self.target_id, self._target_location, cube_orn)
-        #self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, 5+self.joints_count-1)[0], dtype=np.float32)
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
         observation = self._get_obs()
@@ -418,18 +403,6 @@ class RoboWorldEnv(gym.Env):
             target_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01])#, visualFramePosition=self._target_location)
             self.target_id = pybullet.createMultiBody(0, target_id, basePosition=self.get_new_target_location())
 
-            # cube to show where "EF" position is
-            #self.ef_cube_id = pybullet.createVisualShape(shapeType=pybullet.GEOM_BOX,
-            #                                             halfExtents=[0.05 / 2, 0.05 / 2, 0.05 / 2],
-            #                                             visualFramePosition=[1.5, 1.5, 1.5],
-            #                                             rgbaColor=[1, 1, 1, 1],
-            #                                             specularColor=[0.4, .4, 0])
-            #pybullet.createMultiBody(0, self.ef_cube_id, basePosition=[1.5, 1.5, 1.5])
-
-            #self.ef_cube_id = pybullet.createVisualShape(ef_cube_shape_id,
-            #                                             basePosition=self.CUBE_REGION[0])
-            #basePosition=self.CUBE_REGION[0])  # [0.70, 0.0, 0.70])
-
         # box (an urdf file will not have accurate hit-boxes as it will fill in the empty space)
         #mass = 0
         #shape_types = [pybullet.GEOM_BOX] * 5
@@ -455,9 +428,9 @@ class RoboWorldEnv(gym.Env):
         #print("(0) cube_pos, cube_orn:", cube_pos, cube_orn)
 
         #for i in range(200):
-            #cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
-            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH))
-            #cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
+        #    cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
+        #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH))
+        #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
 
         # ABB IRB120
         # ToDo: add inertia to urdf file
@@ -472,7 +445,7 @@ class RoboWorldEnv(gym.Env):
         #self.joints_count = 1
 
         # set the initial joint starting positions
-        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.4, targetVelocity=0)
+        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.9, targetVelocity=0)
         #pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=-0.9, targetVelocity=0)
 
         self.init_state = pybullet.saveState()
