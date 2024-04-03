@@ -10,7 +10,7 @@ class Run:
     def __init__(self, total_time_steps=500_000, env=None, model=None):
         result = {"keyboard_interrupt": False}
         self.total_time_steps = total_time_steps
-        file_name_append = "R2"
+        file_name_append = "A2"
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps=self.total_time_steps)
 
@@ -63,7 +63,7 @@ class Run:
         #print(f"time remaining: {time_remaining}")
 
 
-def get_model_name(model, total_time_steps, file_name_append="R2"):
+def get_model_name(model, total_time_steps, file_name_append="A2"):
     algo_name = str(model.__class__).split('.')[-1].strip("'>")
     time_s = datetime.now().strftime("%y%m%d_%H%M%S")
     name = f"{algo_name}-v{int(total_time_steps/1000)}k-{file_name_append}-{time_s}"
@@ -73,7 +73,7 @@ def get_model_name(model, total_time_steps, file_name_append="R2"):
 
 def save_model_name(path):
     with open("models/.last_model_name.txt", 'a') as f:
-        f.write(path)
+        f.write('\n'+path)
 
 
 def save_model(env, model, model_filename):
@@ -84,7 +84,7 @@ def save_model(env, model, model_filename):
     env.unwrapped.set_fname(model_filename.strip("models/"))
 
 
-def train_last_model(total_time_steps=30_000, max_episode_steps=240*4):
+def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False):
     last = True
     model = None
     last_model_names = []
@@ -93,8 +93,9 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4):
 
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
                    max_episode_steps=max_episode_steps,
-                   verbose=True,
-                   total_steps=total_time_steps)
+                   verbose=False,
+                   total_steps=total_time_steps,
+                   constant_cube_spawn=constant_cube_spawn)
 
     last_model_names.reverse()
     for last_model_name in last_model_names:
@@ -130,13 +131,14 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4):
 
 class Manager:
     def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=True, vary_max_steps=False,
-                 vary_learning_rates=False, repeats=1, total_steps=None):
+                 vary_learning_rates=False, repeats=1, total_steps=None, constant_cube_spawn=False):
         # selected run options
         self.model_types_to_run = model_types_to_run
         self.do_short_time_steps = do_short_time_steps
         self.vary_max_steps = vary_max_steps
         self.vary_learning_rates = vary_learning_rates
         self.repeats = repeats
+        self.constant_cube_spawn = constant_cube_spawn
 
         # configurations
         self.env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
@@ -154,7 +156,7 @@ class Manager:
         # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
         if not self.vary_max_steps:
-            self.max_ep_steps_list = [240]
+            self.max_ep_steps_list = [240*4]
 
         # learning rates
         self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
@@ -181,8 +183,12 @@ class Manager:
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
             #PPO(n_steps=2048, batch_size=64, n_epochs=10)
-            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
-            model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
+
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=False,
+                           total_steps=self.total_time_steps_dict[model_name],
+                           constant_cube_spawn=self.constant_cube_spawn)
+            model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
+                                                 n_steps=240*12, batch_size=60, n_epochs=10)
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
@@ -192,7 +198,7 @@ class Manager:
         model_name = "SAC"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
@@ -203,7 +209,7 @@ class Manager:
         model_name = "A2C"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name])
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
@@ -212,62 +218,13 @@ class Manager:
 
 
 if __name__ == '__main__':
+    # probably worth having a few (8) points for the cube to spawn at and run those in batches?
+
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, total_steps=400_000)
-    m.run()
+    #m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, total_steps=250_000, constant_cube_spawn=False)
+    #m.run()
 
     # run previously trained model
-    #train_last_model(total_time_steps=500_000, max_episode_steps=240*2)
-
-
-"""
-# create environment
-env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240 * 2, verbose=True,
-               total_steps=self.total_time_steps)
-
-# create new model
-model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1,
-            learning_rate=0.0005)
-
-# load models
-model = PPO.load("models/PPO-v200k", env)
-
-# train & save model
-model.learn(total_timesteps=self.total_time_steps)
-model.save(model_filename)
-"""
-
-# vec_env = model.get_env()
-# obs = vec_env.reset()
-# score = 0
-# for i in range(sims):
-#    action, _state = model.predict(obs, deterministic=True)
-#    obs, reward, done, info = vec_env.step(action)
-#    score += reward
-#    vec_env.render("human")
-#    print(score)
-#    # VecEnv resets automatically
-#    # if done:
-#    #   obs = vec_env.reset()
-
-"""observation, info = env.reset(seed=42)
-for i in range(100):
-    action = env.action_space.sample()  # this is where you would insert your policy
-    observation, reward, terminated, truncated, info = env.step(action)
-
-    if terminated or truncated:
-        observation, info = env.reset()
-
-
-
-#model_name = "SAC"
-#env = gym.make(env_name, max_episode_steps=max_ep_steps, verbose=True, total_steps=total_time_steps_dict[model_name])
-#model = SAC.load("models/SAC-v33k-R2-1697786639", env)
-##model = models_dict[model_name](policy_name, env, verbose=1, device="auto")
-#Run(total_time_steps=total_time_steps_dict[model_name], env=env, model=model)
-#del env, model
-#exit()
-
-"""
+    train_last_model(total_time_steps=2_000_000, max_episode_steps=240*4)
