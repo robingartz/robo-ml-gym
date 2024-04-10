@@ -38,7 +38,7 @@ class Run:
         # train model
         self.start_time = time.time()
         try:
-            model.learn(total_timesteps=self.total_time_steps)#, callback=self.model_callback)
+            model.learn(total_timesteps=self.total_time_steps)
         except KeyboardInterrupt:
             result["keyboard_interrupt"] = True
 
@@ -48,19 +48,8 @@ class Run:
         if env is not None:
             env.close()
 
-        print("=== done ===")
         if result["keyboard_interrupt"]:
             raise KeyboardInterrupt()
-
-    def model_callback(self, state, _):
-        #print("ended - callback")
-        #print(time.time() - self.start_time)
-        #print(info)
-        time_elapsed = time.time() - self.start_time
-        #steps_elapsed = state["steps"]
-        #steps_remaining = self.total_time_steps - steps_elapsed
-        #time_remaining = steps_remaining * (time_elapsed / steps_elapsed)
-        #print(f"time remaining: {time_remaining}")
 
 
 def get_model_name(model, total_time_steps, file_name_append="A2"):
@@ -84,22 +73,16 @@ def save_model(env, model, model_filename):
     env.unwrapped.set_fname(model_filename.strip("models/"))
 
 
-def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False):
-    last = True
-    model = None
+def get_previous_model_names():
     last_model_names = []
     with open("models/.last_model_name.txt", 'r') as f:
         last_model_names = f.readlines()
-
-    env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
-                   max_episode_steps=max_episode_steps,
-                   verbose=False,
-                   total_steps=total_time_steps,
-                   constant_cube_spawn=constant_cube_spawn)
-
-    prev_steps = 0
     last_model_names.reverse()
-    for last_model_name in last_model_names:
+    return last_model_names
+
+
+def get_previous_model(env):
+    for last_model_name in get_previous_model_names():
         print("Loading model:", last_model_name)
         last_model_name = last_model_name.strip('\n')
 
@@ -112,9 +95,22 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
                     model = model_class.load(last_model_name, env)
-            break
-        except:
+                    return model, prev_steps
+        except Exception as error:
+            print(error)
             pass
+
+    return None, 0
+
+
+def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False):
+    env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
+                   max_episode_steps=max_episode_steps,
+                   verbose=False,
+                   total_steps=total_time_steps,
+                   constant_cube_spawn=constant_cube_spawn)
+
+    model, prev_steps = get_previous_model(env)
 
     # TODO: total_time_steps may be incorrect if training interrupted
     model_filename = get_model_name(model, prev_steps + total_time_steps)
@@ -125,7 +121,6 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
     except KeyboardInterrupt as err:
         print(err)
 
-    # save model
     save_model(env, model, model_filename)
 
     if env is not None:
@@ -226,8 +221,11 @@ if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    #m = Manager(model_types_to_run=["PPO"], do_short_time_steps=False, total_steps=250_000, constant_cube_spawn=False)
-    #m.run()
+    m = Manager(model_types_to_run=["SAC"], total_steps=50_000, constant_cube_spawn=False)
+    m.run()
 
     # run previously trained model
-    train_last_model(total_time_steps=2_000_000, max_episode_steps=240*4)
+    for i in range(5):
+        train_last_model(total_time_steps=50_000, max_episode_steps=240*4)
+    #for i in range(5):
+     #   train_last_model(total_time_steps=50_000, max_episode_steps=240*6)
