@@ -3,6 +3,34 @@ import gymnasium as gym
 from stable_baselines3 import A2C, PPO, SAC
 
 
+def get_previous_model_names():
+    last_model_names = []
+    with open("models/.last_model_name.txt", 'r') as f:
+        last_model_names = f.readlines()
+    last_model_names.reverse()
+    return last_model_names
+
+
+def get_previous_model(env):
+    for last_model_name in get_previous_model_names():
+        print("Loading model:", last_model_name)
+        last_model_name = last_model_name.strip('\n')
+
+        try:
+            # load model
+            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
+            for model_name, model_class in models_dict.items():
+                if model_name in last_model_name:
+                    model = model_class.load(last_model_name, env)
+                    return model
+
+        except Exception as error:
+            print(error)
+            pass
+
+    return None
+
+
 class Run:
     def __init__(self, constant_cube_spawn=False):
         self.constant_cube_spawn = constant_cube_spawn
@@ -11,31 +39,19 @@ class Run:
         last = False
         if last_model_name == "" or last_model_name == "last":
             last = True
-            with open("models/.last_model_name.txt", 'r') as f:
-                last_model_names = f.readlines()
         sims = 190_000
         total_time_steps = 160_000
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, render_mode="human",
                        verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
 
-        # load models
+        # load model
         model = None
         if last:
-            last_model_names.reverse()
-            for last_model_name in last_model_names:
-                print("Loading model:", last_model_name)
-                last_model_name = last_model_name.strip('\n')
-                try:
-                    model = PPO.load(last_model_name, env)
-                    break
-                except:
-                    pass
+            model = get_previous_model(env)
         else:
-            model = PPO.load("models/PPO-v50k-R2-240207_190923", env)
-            #model = SAC.load("models/R3.1-vary-lr_ground/SAC-v55k-R2-1697792186", env)
-            #model = SAC.load("models/old/R3.0-vary-lr_ground/SAC-v55k-R2-1697734035", env)
-            #model = A2C.load("models/R3-vary-lr/A2C-v750k-R2-1697750396", env)
+            #model = PPO.load("", env)
+            pass
 
         print(model.policy)
         vec_env = model.get_env()
@@ -47,9 +63,6 @@ class Run:
             score += reward
             vec_env.render("human")
             #print(score)
-            # VecEnv resets automatically
-            # if done:
-            #   obs = vec_env.reset()
 
     def run_without_model(self):
         sims = 18
