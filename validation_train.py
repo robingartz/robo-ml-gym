@@ -97,6 +97,7 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
                    total_steps=total_time_steps,
                    constant_cube_spawn=constant_cube_spawn)
 
+    prev_steps = 0
     last_model_names.reverse()
     for last_model_name in last_model_names:
         print("Loading model:", last_model_name)
@@ -107,11 +108,15 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
             prev_steps = int(re.search("-v([0-9]*)k-", last_model_name).group()[2:-2]) * 1_000
 
             # load and train model
-            model = PPO.load(last_model_name, env)
+            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
+            for model_name, model_class in models_dict.items():
+                if model_name in last_model_name:
+                    model = model_class.load(last_model_name, env)
             break
         except:
             pass
 
+    # TODO: total_time_steps may be incorrect if training interrupted
     model_filename = get_model_name(model, prev_steps + total_time_steps)
     env.unwrapped.set_fname(model_filename.strip("models/"))  # ensure info logs have the same name as the model
 
@@ -121,8 +126,6 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
         print(err)
 
     # save model
-    # TODO: total_time_steps may be incorrect if training interrupted
-    model_filename = get_model_name(model, prev_steps + total_time_steps)
     save_model(env, model, model_filename)
 
     if env is not None:
@@ -130,7 +133,7 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
 
 
 class Manager:
-    def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=True, vary_max_steps=False,
+    def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=False, vary_max_steps=False,
                  vary_learning_rates=False, repeats=1, total_steps=None, constant_cube_spawn=False):
         # selected run options
         self.model_types_to_run = model_types_to_run
