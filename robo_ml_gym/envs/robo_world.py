@@ -27,6 +27,7 @@ class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, total_steps=None, fname_app="_", constant_cube_spawn=False):
+        #render_mode = "human"
         # box dimensions (the area the cube can spawn within)
         FLAT = 0.1  # ToDo: figure out what to do for the regions that are 2D...
         MAX_EF_HEIGHT = 0.6  # ToDo: this value is debatable, should it be enforced etc?
@@ -86,13 +87,16 @@ class RoboWorldEnv(gym.Env):
         # we have 6 actions, corresponding to the angles of the six joints
         # ToDo: are we controlling velocity or position or torque of the joints?
         #self.action_space = spaces.Box(-MAX_JOINT_VEL, MAX_JOINT_VEL, shape=(6,), dtype=np.float32)
-        #self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
-        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(4,), dtype=np.float32)
+        self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
+        #self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(4,), dtype=np.float32)
 
         #self._action_to_angle_cmd = {
         #    0: np.array([1, 0]),
         #    1: np.array([0, 1]),
         #}
+
+        # run physics sim for n steps, then give back control to agent
+        self.steps_between_interaction = 1
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # human or rgb_array
@@ -141,6 +145,15 @@ class RoboWorldEnv(gym.Env):
     def _get_info(self):
         return {"step": self.steps, "cur_steps": self.cur_steps, "distance": np.linalg.norm(self._target_location, ord=1)}
 
+    def _get_time_remaining(self):
+        # time remaining info
+        time_remaining = 0
+        if self.total_steps > 0:
+            time_elapsed = time.time() - self.start_time
+            steps_remaining = self.total_steps - self.steps
+            time_remaining = int(steps_remaining * (time_elapsed / max(1, self.steps)))
+        return time_remaining
+
     def _update_dist(self):
         # when it picks up the cube, the dist became the target_location which was far away, resulting in a
         # bad score (-ve even), therefore telling the model NOT to actually pick up the cube, ideally, just get near
@@ -180,6 +193,8 @@ class RoboWorldEnv(gym.Env):
         return target_location
 
     def _get_reward(self):
+        self.normalise_by_init_dist = True
+        # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
         # can i make a time-independent score?
         # Note: a 500k @ 240 steps was run in 964s
@@ -194,8 +209,8 @@ class RoboWorldEnv(gym.Env):
         if self.holding_cube:
             reward += 2
         # if target location has been reached, then stop moving
-        travel = abs(np.linalg.norm(self._end_effector_pos - self.prev_end_effector_pos))
-        reward += 1 / (max(0.025, travel) * 120)
+        #travel = abs(np.linalg.norm(self._end_effector_pos - self.prev_end_effector_pos))
+        #reward += 1 / (max(0.025, travel) * 120)
 
         #if self.dist < self.prev_dist:
         #    reward += 1
@@ -205,8 +220,8 @@ class RoboWorldEnv(gym.Env):
             reward += 50
 
         # punish going below ground... do we need some vector indicating the closest collision?
-        if self._end_effector_pos[2] < 0.025:
-            reward -= 5
+        #if self._end_effector_pos[2] < 0.025:
+        #    reward -= 5
 
         #if self.dist > self.prev_dist:
         #    reward -= 2
@@ -250,6 +265,7 @@ class RoboWorldEnv(gym.Env):
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
             self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
         self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
+        self.cube_pos = (self.cube_pos[0], self.cube_pos[1], self.cube_pos[2] + CUBE_DIM / 2)
 
         rel_pos = self._end_effector_pos - self.cube_pos
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
@@ -264,14 +280,16 @@ class RoboWorldEnv(gym.Env):
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
         # move joints
-        #for joint_index in range(0, 0+self.joints_count-1):
-        for joint_index in range(0, 0 + self.joints_count - 1 - 2):
-            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-            #                               controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
+        #for joint_index in range(0, 0 + self.joints_count - 1 - 2):
+        for joint_index in range(0, 0+self.joints_count-1):
+            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+                                           controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
             #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
             #                               controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
             ...
 
+        # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
+        #for i in range(self.steps_between_interaction):
         pybullet.stepSimulation()
 
         #self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, 5+self.joints_count-1)[0], dtype=np.float32)
@@ -283,7 +301,7 @@ class RoboWorldEnv(gym.Env):
 
         if self.holding_cube:
             self.just_picked_up_cube = False
-        if self.dist < (CUBE_DIM / 2) * 1.45 + FLT_EPSILON:
+        if self.dist < (CUBE_DIM / 2):# * 1.45 + FLT_EPSILON:
             if not self.holding_cube:
                 print("creating cube constraint")
                 self.holding_cube = True
@@ -294,9 +312,11 @@ class RoboWorldEnv(gym.Env):
                                                                     [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
         else:
             if self.holding_cube:
-                self.holding_cube = False
-                pybullet.removeConstraint(self.cube_constraint_id)
-                self.cube_constraint_id = None
+                pass
+                #if self.dist > (CUBE_DIM / 2) * 20.5:
+                #    self.holding_cube = False
+                #    pybullet.removeConstraint(self.cube_constraint_id)
+                #    self.cube_constraint_id = None
         #if self.dist > (CUBE_DIM / 2)*1.1 + FLT_EPSILON:
 
         terminated = False #self.dist < 0.056
@@ -324,19 +344,7 @@ class RoboWorldEnv(gym.Env):
         if self.physics_client is None:
             self._setup()
 
-        # time remaining info
-        time_remaining = 0
-        if self.total_steps > 0:
-            time_elapsed = time.time() - self.start_time
-            steps_remaining = self.total_steps - self.steps
-            time_remaining = int(steps_remaining * (time_elapsed / max(1, self.steps)))
-
-        # verbose prints
-        elapsed = int(time.time() - self.start_time)
-        self.score = max(0, self.score)
-        self.print_verbose(f"ETA: {time_remaining}s, total_steps: {self.steps}, sim: {self.resets}, "
-                           f"steps: {self.cur_steps}, dist: {self.dist}, score: {self.score}, elapsed: {elapsed}s, "
-                           f"has cube: {self.holding_cube}")
+        self._print_info()
 
         # reset the robot's position
         pybullet.restoreState(self.init_state)
@@ -362,8 +370,8 @@ class RoboWorldEnv(gym.Env):
 
         # set a random position for the target location
         self._target_location = self.get_new_target_location()
-        if self.render_mode == "human":
-            pybullet.resetBasePositionAndOrientation(self.target_id, self._target_location, cube_orn)
+        #if self.render_mode == "human":
+        #    pybullet.resetBasePositionAndOrientation(self.target_id, self._target_location, cube_orn)
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
         observation = self._get_obs()
@@ -377,6 +385,13 @@ class RoboWorldEnv(gym.Env):
         self.score = 0
 
         return observation, info
+
+    def _print_info(self):
+        elapsed = int(time.time() - self.start_time)
+        self.score = max(0, self.score)
+        self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.steps}, sim: {self.resets}, "
+                           f"steps: {self.cur_steps}, dist: %.4f, score: %4d, elapsed: {elapsed}s, "
+                           f"has cube: {self.holding_cube}" % (self.dist, int(self.score)))
 
     def _setup(self):
         """pybullet setup"""
@@ -400,8 +415,8 @@ class RoboWorldEnv(gym.Env):
             pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
 
             # target location
-            target_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01])#, visualFramePosition=self._target_location)
-            self.target_id = pybullet.createMultiBody(0, target_id, basePosition=self.get_new_target_location())
+            #target_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01])#, visualFramePosition=self._target_location)
+            #self.target_id = pybullet.createMultiBody(0, target_id, basePosition=self.get_new_target_location())
 
         # box (an urdf file will not have accurate hit-boxes as it will fill in the empty space)
         #mass = 0
@@ -434,7 +449,7 @@ class RoboWorldEnv(gym.Env):
 
         # ABB IRB120
         # ToDo: add inertia to urdf file
-        start_pos = [0, 0, 0.18/2 + 0.65 - 0.3]
+        start_pos = [0, 0, 0.18/2 + 0.65 - 0.1]
         start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
         urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
         if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
@@ -453,5 +468,6 @@ class RoboWorldEnv(gym.Env):
     def close(self):
         #with open(self.verbose_file, 'w') as f:
         #    f.write(self.v_txt)
+        self._print_info()
         if self.physics_client is not None:
             pybullet.disconnect()
