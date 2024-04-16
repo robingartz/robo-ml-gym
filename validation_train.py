@@ -7,10 +7,10 @@ from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-rep
 
 
 class Run:
-    def __init__(self, total_time_steps=500_000, env=None, model=None):
+    def __init__(self, total_time_steps=500_000, env=None, model=None, save_interval=0):
         result = {"keyboard_interrupt": False}
         self.total_time_steps = total_time_steps
-        file_name_append = "A2"
+        file_name_append = "A3"
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps=self.total_time_steps)
 
@@ -38,7 +38,14 @@ class Run:
         # train model
         self.start_time = time.time()
         try:
-            model.learn(total_timesteps=self.total_time_steps)
+            if save_interval == 0:
+                model.learn(total_timesteps=self.total_time_steps)
+            else:
+                time_steps_completed = 0
+                while time_steps_completed < self.total_time_steps:
+                    model.learn(total_timesteps=save_interval)
+                    model.save(model_filename + "-s" + str(int(time_steps_completed/1000)) + "k")
+                    time_steps_completed += save_interval
         except KeyboardInterrupt:
             result["keyboard_interrupt"] = True
 
@@ -111,6 +118,7 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
                    constant_cube_spawn=constant_cube_spawn)
 
     model, prev_steps = get_previous_model(env)
+    #model.learning_rate = 0.0
 
     # TODO: total_time_steps may be incorrect if training interrupted
     model_filename = get_model_name(model, prev_steps + total_time_steps)
@@ -158,10 +166,11 @@ class Manager:
 
         # learning rates
         self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
-                         "SAC": [0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
+                         "SAC": [0.0002, 0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
                          "A2C": [0.0010, 0.0020]}  # A2C  0.00010, 0.0004, 0.0007,
         if not self.vary_learning_rates:
             self.lrs_dict = {"PPO": [5e-4], "SAC": [3e-4], "A2C": [7e-4]}
+        #self.lrs_dict = {"PPO": [0.0], "SAC": [0.000001], "A2C": [0.0]}
 
     def run(self):
         print(f"running training for: {self.model_types_to_run} for: {self.total_time_steps_dict} steps")
@@ -221,11 +230,12 @@ if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    m = Manager(model_types_to_run=["SAC"], total_steps=50_000, constant_cube_spawn=False)
+    m = Manager(model_types_to_run=["SAC"], total_steps=50_000, constant_cube_spawn=False, vary_learning_rates=False)
     m.run()
 
     # run previously trained model
+    #train_last_model(total_time_steps=10_000, max_episode_steps=240*4)
     for i in range(5):
-        train_last_model(total_time_steps=50_000, max_episode_steps=240*4)
+        train_last_model(total_time_steps=10_000, max_episode_steps=240*4)
     #for i in range(5):
-     #   train_last_model(total_time_steps=50_000, max_episode_steps=240*6)
+    #    train_last_model(total_time_steps=50_000, max_episode_steps=240*6)
