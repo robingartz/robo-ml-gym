@@ -1,5 +1,6 @@
 # user specific
 models/*
+models_1/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

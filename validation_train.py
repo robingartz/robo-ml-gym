@@ -59,7 +59,7 @@ class Run:
             raise KeyboardInterrupt()
 
 
-def get_model_name(model, total_time_steps, file_name_append="A2"):
+def get_model_name(model, total_time_steps, file_name_append="A3"):
     algo_name = str(model.__class__).split('.')[-1].strip("'>")
     time_s = datetime.now().strftime("%y%m%d_%H%M%S")
     name = f"{algo_name}-v{int(total_time_steps/1000)}k-{file_name_append}-{time_s}"
@@ -162,14 +162,14 @@ class Manager:
         # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
         if not self.vary_max_steps:
-            self.max_ep_steps_list = [240*4]
+            self.max_ep_steps_list = [240*1]
 
         # learning rates
         self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
                          "SAC": [0.0002, 0.0005, 0.0010],  # SAC  0.00009, 0.0001, 0.0003,
                          "A2C": [0.0010, 0.0020]}  # A2C  0.00010, 0.0004, 0.0007,
         if not self.vary_learning_rates:
-            self.lrs_dict = {"PPO": [5e-4], "SAC": [3e-4], "A2C": [7e-4]}
+            self.lrs_dict = {"PPO": [5e-4], "SAC": [1e-4], "A2C": [7e-4]}
         #self.lrs_dict = {"PPO": [0.0], "SAC": [0.000001], "A2C": [0.0]}
 
     def run(self):
@@ -230,12 +230,12 @@ if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    m = Manager(model_types_to_run=["SAC"], total_steps=50_000, constant_cube_spawn=False, vary_learning_rates=False)
-    m.run()
+    #m = Manager(model_types_to_run=["SAC"], total_steps=23_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m.run()
 
     # run previously trained model
-    #train_last_model(total_time_steps=10_000, max_episode_steps=240*4)
+    train_last_model(total_time_steps=20_000, max_episode_steps=240)
     for i in range(5):
-        train_last_model(total_time_steps=10_000, max_episode_steps=240*4)
+        train_last_model(total_time_steps=20_000, max_episode_steps=240)
     #for i in range(5):
     #    train_last_model(total_time_steps=50_000, max_episode_steps=240*6)
