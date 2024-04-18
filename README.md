@@ -5,7 +5,7 @@ using PyBullet Physics Engine and Gymnasium Environment
 ![image](https://github.com/robingartz/robo-ml-gym/assets/76932159/34465559-9470-41b0-9ad7-18facbd522cd)
 
 ## Install Gymnasium on Windows:
-$ conda create -n gymenv  
+```$ conda create -n gymenv  
 $ conda activate gymenv  
 $ conda install python=3.11  
 $ conda install -c conda-forge pip  
@@ -14,14 +14,20 @@ $ pip install gymnasium[mujoko]
 $ pip install gymnasium[atari]  
 $ pip install gymnasium[accept-rom-license]  
 $ conda install swig  
+```
 Install C++ build tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/  
+```
 $ pip install gymnasium[box2d]  
 $ pip install pybullet  
+```
 
 Other libraries:  
+```
 $ pip install stable-baselines3  
+$ pip install rl_zoo3
 $ pip install panda-gym  
 $ pip install robo-gym  
+```
 
 ## Handy URLs:
 Gymnasium: https://gymnasium.farama.org/  
@@ -32,11 +38,15 @@ robo-gym: https://github.com/jr-robotics/robo-gym
 
 ## Custom Environment Setup:
 https://gymnasium.farama.org/tutorials/gymnasium_basics/environment_creation/#sphx-glr-tutorials-gymnasium-basics-environment-creation-py  
+```
 $ conda activate gymenv  
+```
 from parent directory:  
+```
 $ pip install -e robo-ml-gym  
 $ cd robo-ml-gym/  
 $ python3 validation.py
+```
 
 ## PyCharm Setup:
 Set default Python interpreter to gymenv as outlined in:  
