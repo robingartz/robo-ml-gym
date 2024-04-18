@@ -103,6 +103,9 @@ class RoboWorldEnv(gym.Env):
         self.cur_steps = 0
         self.steps = 0
         self.score = 0
+        self.carry_over_score = 0
+        self.carry_has_cube = 0
+        self.carry_has_no_cube = 0
 
         self.total_steps = total_steps if total_steps is not None else 0
         self.start_time = time.time()
@@ -302,6 +305,10 @@ class RoboWorldEnv(gym.Env):
         pybullet.restoreState(self.init_state)
 
         # remove the cube to EF constraint
+        if self.holding_cube:
+            self.carry_has_cube += 1
+        else:
+            self.carry_has_no_cube += 1
         self.holding_cube = False
         self.picked_up_cube_count = 0
         self.reached_target_with_cube = False
@@ -345,6 +352,7 @@ class RoboWorldEnv(gym.Env):
 
         self.resets += 1
         self.cur_steps = 0
+        self.carry_over_score += int(self.score)
         self.score = 0
 
         return observation, info

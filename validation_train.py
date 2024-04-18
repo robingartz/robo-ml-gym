@@ -127,6 +127,11 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
 
     try:
         model.learn(total_timesteps=total_time_steps)
+        with open("scores.txt", 'a') as f:
+            successes = env.unwrapped.carry_has_cube
+            fails = env.unwrapped.carry_has_no_cube
+            success_rate = int(successes / (successes + fails) * 100)
+            f.write(f"\n{model_filename},{learning_rate},{env.unwrapped.carry_over_score},{successes},{fails},{success_rate}" )
     except KeyboardInterrupt as err:
         print(err)
 
@@ -235,8 +240,18 @@ if __name__ == '__main__':
     #m.run()
 
     # run previously trained model
-    train_last_model(total_time_steps=20_000, max_episode_steps=240)
-    for i in range(5):
-        train_last_model(total_time_steps=20_000, max_episode_steps=240)
-    #for i in range(5):
-    #    train_last_model(total_time_steps=50_000, max_episode_steps=240*6)
+    #train_last_model(total_time_steps=20_000, max_episode_steps=240)
+    #for i in range(20):
+    #    train_last_model(total_time_steps=20_000, max_episode_steps=240)
+    #for i in range(10):
+    #    train_last_model(total_time_steps=20_000, max_episode_steps=240*2)
+    #for i in range(3):
+    #    train_last_model(total_time_steps=20_000, max_episode_steps=240*4)
+
+    #m = Manager(model_types_to_run=["PPO"], total_steps=250_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m.run()
+    train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=5e-6)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=5e-6)
+    for i in range(4000):
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-6)
