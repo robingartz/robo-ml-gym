@@ -88,7 +88,7 @@ def get_previous_model_names():
     return last_model_names
 
 
-def get_previous_model(env):
+def get_previous_model(env, custom_objects):
     for last_model_name in get_previous_model_names():
         print("Loading model:", last_model_name)
         last_model_name = last_model_name.strip('\n')
@@ -101,7 +101,7 @@ def get_previous_model(env):
             models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
-                    model = model_class.load(last_model_name, env)
+                    model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
         except Exception as error:
             print(error)
@@ -110,14 +110,15 @@ def get_previous_model(env):
     return None, 0
 
 
-def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False):
+def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False, learning_rate=5e-4):
+    custom_objects = {'learning_rate': learning_rate}
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
                    max_episode_steps=max_episode_steps,
                    verbose=False,
                    total_steps=total_time_steps,
                    constant_cube_spawn=constant_cube_spawn)
 
-    model, prev_steps = get_previous_model(env)
+    model, prev_steps = get_previous_model(env, custom_objects)
     #model.learning_rate = 0.0
 
     # TODO: total_time_steps may be incorrect if training interrupted
