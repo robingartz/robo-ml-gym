@@ -42,7 +42,7 @@ class Run:
         sims = 190_000
         total_time_steps = 160_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*4, render_mode="human",
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*8, render_mode="human",
                        verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
 
         # load model
