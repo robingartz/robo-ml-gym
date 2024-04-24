@@ -1,5 +1,6 @@
 # standard libs
 import time
+import math
 import os
 
 # 3rd party libs
@@ -239,6 +240,13 @@ class RoboWorldEnv(gym.Env):
         self.prev_dist = self.dist
         return reward
 
+    def _process_keyboard_events(self):
+        """process keyboard event"""
+        keys = pybullet.getKeyboardEvents()
+        key_next = ord('n')
+        if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
+            self.reset()
+
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
         # move joints
@@ -255,6 +263,12 @@ class RoboWorldEnv(gym.Env):
         self.prev_end_effector_pos = self._end_effector_pos
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
         self._update_dist()
+
+        if self.render_mode == "human":
+            self._process_keyboard_events()
+            if self.orn_line is not None:
+                pybullet.removeUserDebugItem(self.orn_line)
+            self.orn_line = pybullet.addUserDebugLine(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], self.cube_pos)
 
         if self.holding_cube:
             self.just_picked_up_cube = False
