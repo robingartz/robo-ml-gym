@@ -250,8 +250,9 @@ if __name__ == '__main__':
 
     #m = Manager(model_types_to_run=["PPO"], total_steps=250_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
-    train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=5e-6)
+    #time.sleep(60*15)
+    train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=2e-6)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=5e-6)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=2e-6)
     for i in range(4000):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-6)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-6)

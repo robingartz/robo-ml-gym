@@ -51,8 +51,8 @@ class RoboWorldEnv(gym.Env):
         self.TARGET_REGION_HIGH = np.array([TR[0][0] + TR[1][0], TR[0][1] + TR[1][1], TR[0][2] + TR[1][2]])
         # cube spawn region
         CSR = self.CUBE_START_REGION
-        self.CUBE_START_REGION_LOW = np.array([CSR[0][0] - CSR[1][0], CSR[0][1] - CSR[1][1], CSR[0][2] - CSR[1][2]])
-        self.CUBE_START_REGION_HIGH = np.array([CSR[0][0] + CSR[1][0], CSR[0][1] + CSR[1][1], CSR[0][2] + CSR[1][2]])
+        self.CUBE_START_REGION_LOW = np.array([CSR[0][0] - CSR[1][0] -0.0, -0.2+CSR[0][1] - CSR[1][1], 0.05+CSR[0][2] - CSR[1][2]])
+        self.CUBE_START_REGION_HIGH = np.array([CSR[0][0] + CSR[1][0] +0.18, 0.2+CSR[0][1] + CSR[1][1], 0.35+CSR[0][2] + CSR[1][2]])
         # cube region (all places the cube could possibly exist at)
         CR = self.CUBE_REGION
         self.CUBE_REGION_LOW = np.array([CR[0][0] - CR[1][0], CR[0][1] - CR[1][1], CR[0][2] - CR[1][2]])
@@ -107,6 +107,7 @@ class RoboWorldEnv(gym.Env):
         self.carry_has_cube = 0
         self.carry_has_no_cube = 0
 
+        self.max_episode_steps = None
         self.total_steps = total_steps if total_steps is not None else 0
         self.start_time = time.time()
 
@@ -259,7 +260,6 @@ class RoboWorldEnv(gym.Env):
             self.just_picked_up_cube = False
         if self.dist < (CUBE_DIM / 2):  # * 1.45:
             if not self.holding_cube:
-                print("creating cube constraint")
                 self.holding_cube = True
                 self.just_picked_up_cube = True
                 self.picked_up_cube_count += 1
@@ -274,14 +274,20 @@ class RoboWorldEnv(gym.Env):
                 #    pybullet.removeConstraint(self.cube_constraint_id)
                 #    self.cube_constraint_id = None
 
-        terminated = False  #self.dist < 0.056
+        terminated = self.holding_cube #False  #self.dist < 0.056
         reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
 
         if terminated:
-            reward += 5000
+            if self.max_episode_steps is not None:
+                reward += (1 / (0.05 / 2)) * 1.2 * 240 * (self.max_episode_steps - self.steps)
+            else:
+                reward = 69000
             self.score += reward
+        self.score = min(self.score, 69000)
+        if terminated:
+            self.score += 1000
 
         if self.render_mode == "human":
             self._render_frame()
@@ -322,18 +328,10 @@ class RoboWorldEnv(gym.Env):
             self.cube_pos = self._get_const_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
         else:
             self.cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+
         if self.use_phantom_cube:
             self.target_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
-            #if self.line_x is not None:
-            #    pybullet.removeUserDebugItem(self.line_x)
-            #    pybullet.removeUserDebugItem(self.line_y)
-            #    pybullet.removeUserDebugItem(self.line_z)
-            #line_x_to = self.target_pos+[0.2, 0, 0]
-            #line_y_to = self.target_pos+[0, 0.2, 0]
-            #line_z_to = self.target_pos+[0, 0, 0.2]
-            #self.line_x = pybullet.addUserDebugLine(lineFromXYZ=self.target_pos, lineToXYZ=line_x_to, lineColorRGB=[1, 0, 0], lifeTime=0)
-            #self.line_y = pybullet.addUserDebugLine(lineFromXYZ=self.target_pos, lineToXYZ=line_y_to, lineColorRGB=[0, 1, 0], lifeTime=0)
-            #self.line_z = pybullet.addUserDebugLine(lineFromXYZ=self.target_pos, lineToXYZ=line_z_to, lineColorRGB=[0, 0, 1], lifeTime=0)
+
             if self.point is not None:
                 pybullet.removeUserDebugItem(self.point)
             self.point = pybullet.addUserDebugPoints(pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)

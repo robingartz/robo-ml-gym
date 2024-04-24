@@ -35,20 +35,21 @@ class Run:
     def __init__(self, constant_cube_spawn=False):
         self.constant_cube_spawn = constant_cube_spawn
 
-    def run_with_model(self, last_model_name=""):
+    def run_with_model(self, last_model_name="", max_episode_steps=240*8):
         last = False
         if last_model_name == "" or last_model_name == "last":
             last = True
         sims = 190_000
         total_time_steps = 160_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*8, render_mode="human",
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=max_episode_steps, render_mode="human",
                        verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
 
         # load model
         model = None
         if last:
             model = get_previous_model(env)
+            model.max_episode_steps = max_episode_steps
         else:
             #model = PPO.load("", env)
             pass
