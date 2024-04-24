@@ -378,6 +378,23 @@ class RoboWorldEnv(gym.Env):
             abb_box_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.1, 0.2, 0.1])
             pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
 
+            low = self.CUBE_START_REGION_LOW
+            high = self.CUBE_START_REGION_HIGH
+            w = high[0] - low[0]
+            l = high[1] - low[1]
+            h = high[2] - low[2]
+            points = ((low[0] + 0, low[1] + 0, low[2] + 0),
+                      (low[0] + w, low[1] + 0, low[2] + 0),
+                      (low[0] + 0, low[1] + l, low[2] + 0),
+                      (low[0] + w, low[1] + l, low[2] + 0),
+                      (low[0] + 0, low[1] + 0, low[2] + h),
+                      (low[0] + w, low[1] + 0, low[2] + h),
+                      (low[0] + 0, low[1] + l, low[2] + h),
+                      (low[0] + w, low[1] + l, low[2] + h)
+                      )
+            print(len(points), len([(0, 0.5, 0.5)]*8))
+            pybullet.addUserDebugPoints(pointPositions=points, pointColorsRGB=[(0, 0.5, 0.5)]*8, pointSize=5, lifeTime=0)
+
         # objects for pick-n-place
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
         mass = 0.03
