@@ -125,13 +125,16 @@ class RoboWorldEnv(gym.Env):
         self.line_y = None
         self.line_z = None
         self.target_pos = None
-        self.prev_dist = self.dist = 0.09
+        self.prev_dist = self.dist = 1.0
+        # 0 deg = vertical from below, 90 deg = horizontal EF, 180 deg = vertical from above
+        self.ef_angle = np.pi / 2
         self.cube_constraint_id = None
         self.holding_cube = False
         self.just_picked_up_cube = False
         self.picked_up_cube_count = 0
         self.repeat_worst_performances = True
         self.prev_init_poses = []  # [(pos, score), ...]
+        self.orn_line = None
 
     def set_fname(self, fname):
         self.fname = fname
@@ -163,11 +166,19 @@ class RoboWorldEnv(gym.Env):
             time_remaining = int(steps_remaining * (time_elapsed / max(1, self.steps)))
         return time_remaining
 
+    def vector_angle(self, a, b):
+        return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
+
     def _update_dist(self):
-        if self.use_phantom_cube:
-            self.dist = abs(np.linalg.norm(self.target_pos - self._end_effector_pos))
-        else:
-            self.dist = abs(np.linalg.norm(self.cube_pos - self._end_effector_pos))# - (CUBE_DIM / 2)
+        # select target
+        target_pos = self.target_pos if self.use_phantom_cube else self.cube_pos
+
+        # distance between EF to target
+        self.dist = abs(np.linalg.norm(target_pos - self._end_effector_pos))
+
+        # angle between EF to target and the Z-axis
+        vec = np.array(target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
+        self.ef_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
 
     def _get_const_pos(self, region_low, region_high):
         pos = np.array([(region_low[0] + region_high[0]) / 2,
@@ -224,8 +235,8 @@ class RoboWorldEnv(gym.Env):
         self.normalise_by_init_dist = True
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        #reward = 1 / (self.dist * 20)
         reward = 1 / max(self.dist, 0.05 / 2)
+        reward += (self.ef_angle / 180) ** 2
 
         if self._end_effector_pos[2] < 0:
             reward -= 10
@@ -246,6 +257,29 @@ class RoboWorldEnv(gym.Env):
         key_next = ord('n')
         if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
             self.reset()
+
+    def _bind_cube(self):
+        self.holding_cube = True
+        self.just_picked_up_cube = True
+        self.picked_up_cube_count += 1
+        self.cube_constraint_id = pybullet.createConstraint(
+            self.robot_id, self.joints_count-1, self.cube_id, -1,
+            pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+
+    def _process_cube_interactions(self):
+        if self.holding_cube:
+            self.just_picked_up_cube = False
+        if self.dist < (CUBE_DIM / 2):  # * 1.45:
+            if not self.holding_cube:
+                if self.ef_angle > 170:
+                    self._bind_cube()
+        else:
+            if self.holding_cube:
+                pass
+                #if self.dist > (CUBE_DIM / 2) * 20.5:
+                #    self.holding_cube = False
+                #    pybullet.removeConstraint(self.cube_constraint_id)
+                #    self.cube_constraint_id = None
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
@@ -270,25 +304,9 @@ class RoboWorldEnv(gym.Env):
                 pybullet.removeUserDebugItem(self.orn_line)
             self.orn_line = pybullet.addUserDebugLine(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], self.cube_pos)
 
-        if self.holding_cube:
-            self.just_picked_up_cube = False
-        if self.dist < (CUBE_DIM / 2):  # * 1.45:
-            if not self.holding_cube:
-                self.holding_cube = True
-                self.just_picked_up_cube = True
-                self.picked_up_cube_count += 1
-                self.cube_constraint_id = pybullet.createConstraint(self.robot_id, self.joints_count-1,
-                                                                    self.cube_id, -1, pybullet.JOINT_FIXED,
-                                                                    [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
-        else:
-            if self.holding_cube:
-                pass
-                #if self.dist > (CUBE_DIM / 2) * 20.5:
-                #    self.holding_cube = False
-                #    pybullet.removeConstraint(self.cube_constraint_id)
-                #    self.cube_constraint_id = None
+        self._process_cube_interactions()
 
-        terminated = self.holding_cube #False  #self.dist < 0.056
+        terminated = False #self.holding_cube #False  #self.dist < 0.056
         reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
@@ -332,7 +350,8 @@ class RoboWorldEnv(gym.Env):
         self.holding_cube = False
         self.picked_up_cube_count = 0
         self.reached_target_with_cube = False
-        self.prev_dist = self.dist = 0.5
+        self.prev_dist = self.dist = 1.0
+        self.ef_angle = np.pi / 2
         if self.cube_constraint_id is not None:
             pybullet.removeConstraint(self.cube_constraint_id)
             self.cube_constraint_id = None
@@ -346,9 +365,10 @@ class RoboWorldEnv(gym.Env):
         if self.use_phantom_cube:
             self.target_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
 
-            if self.point is not None:
-                pybullet.removeUserDebugItem(self.point)
-            self.point = pybullet.addUserDebugPoints(pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
+            if self.render_mode == "human":
+                if self.point is not None:
+                    pybullet.removeUserDebugItem(self.point)
+                self.point = pybullet.addUserDebugPoints(pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
 
         # set cube orientation and position
         cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
