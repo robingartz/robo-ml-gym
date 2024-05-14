@@ -12,6 +12,10 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 
+from robo_ml_gym.envs.cube import Cube
+from robo_ml_gym.envs.region import Region
+
+
 # box dimensions (the area the cube can spawn within)
 BOX_WIDTH = 0.39 / 2
 BOX_LENGTH = 0.58 / 2
@@ -23,6 +27,7 @@ BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
 CUBE_DIM = 0.05
 REL_MAX_DIS = 2.0
 FLT_EPSILON = 0.0000001
+
 
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
@@ -61,6 +66,8 @@ class RoboWorldEnv(gym.Env):
         # end effector possible position
         self.END_EFFECTOR_REGION_LOW = np.array([TR[0][0] - TR[1][0], TR[0][1] - TR[1][1], TR[0][2] - MAX_EF_HEIGHT])
         self.END_EFFECTOR_REGION_HIGH = np.array([TR[0][0] + TR[1][0], TR[0][1] + TR[1][1], TR[0][2] + MAX_EF_HEIGHT])
+
+        self.robot_workspace = Region([0.4, 0, 0.580]) # [0.6, 0, 0.580]
 
         # observations are dictionaries with the robot's joint angles and end effector position and
         # the cube's location and target location
@@ -113,14 +120,19 @@ class RoboWorldEnv(gym.Env):
         self.start_time = time.time()
 
         self.physics_client = None
+        self.cube_count = 4
+        self.cubes = []
+        self.cube_ids = []
+        self.stack_pos = None
+        self.cubes_stacked = 0
+
         self.cube_id = None
         self.robot_id = None
         self.joints_count = None
         self._end_effector_pos = None
         self.prev_end_effector_pos = None
-        self.cube_pos = None
-        self.use_phantom_cube = True
-        self.point = None
+        self.use_phantom_cube = False
+        self.debug_points = []
         self.line_x = None
         self.line_y = None
         self.line_z = None
@@ -170,14 +182,12 @@ class RoboWorldEnv(gym.Env):
         return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
 
     def _update_dist(self):
-        # select target
-        target_pos = self.target_pos if self.use_phantom_cube else self.cube_pos
-
-        # distance between EF to target
-        self.dist = abs(np.linalg.norm(target_pos - self._end_effector_pos))
+        # distance between EF to cube and stack pos
+        self.cube_dist = abs(np.linalg.norm(self.get_first_unstacked_cube().pos - self._end_effector_pos))
+        self.stack_dist = abs(np.linalg.norm(self.stack_pos - self._end_effector_pos))
 
         # angle between EF to target and the Z-axis
-        vec = np.array(target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
+        vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
         self.ef_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
 
     def _get_const_pos(self, region_low, region_high):
@@ -208,17 +218,12 @@ class RoboWorldEnv(gym.Env):
 
     def _get_obs(self):
         """returns the observation space: array of joint positions and the distance between EF and target"""
-
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
             self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
-        self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
-        self.cube_pos = (self.cube_pos[0], self.cube_pos[1], self.cube_pos[2] + CUBE_DIM / 2)
+        pos = (self.target_pos[0], self.target_pos[1], self.target_pos[2] + CUBE_DIM / 2)
 
-        if self.use_phantom_cube:
-            rel_pos = self._end_effector_pos - self.target_pos
-        else:
-            rel_pos = self._end_effector_pos - self.cube_pos
+        rel_pos = self._end_effector_pos - pos
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
         height = np.array([min(max(self._end_effector_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
@@ -236,7 +241,7 @@ class RoboWorldEnv(gym.Env):
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
         reward = 1 / max(self.dist, 0.05 / 2)
-        reward += (self.ef_angle / 180) ** 2
+        #reward += (self.ef_angle / 180) ** 2
 
         if self._end_effector_pos[2] < 0:
             reward -= 10
@@ -266,20 +271,59 @@ class RoboWorldEnv(gym.Env):
             self.robot_id, self.joints_count-1, self.cube_id, -1,
             pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
+    def _xy_close(self, arr1, arr2, a_tol: float):
+        """check if x & y for arr1 & arr2 are within tolerance a_tol"""
+        if abs(arr2[0] - arr1[0]) < a_tol:
+            if abs(arr2[1] - arr1[1]) < a_tol:
+                return True
+        return False
+
     def _process_cube_interactions(self):
         if self.holding_cube:
             self.just_picked_up_cube = False
-        if self.dist < (CUBE_DIM / 2):  # * 1.45:
-            if not self.holding_cube:
-                if self.ef_angle > 170:
+
+        print(f"cube close: {self.cube_dist < (CUBE_DIM / 2)}, stack close: {self.stack_dist < (CUBE_DIM / 2)}, " +
+              f"target: {self.target_pos}, cube: {self.get_first_unstacked_cube().pos}, stack: {self.stack_pos}")
+        if self.cube_dist < (CUBE_DIM / 2):
+            # TODO: instead of using the stack_pos, use top cube pos
+            if self._xy_close(self._end_effector_pos, self.stack_pos, CUBE_DIM / 4):
+                #if self.stack_dist < (CUBE_DIM / 2):
+                # release cube and move towards the next cube
+                if self.cube_constraint_id is not None:
+                    self.holding_cube = False
+                    pybullet.removeConstraint(self.cube_constraint_id)
+                    self.cube_constraint_id = None
+            else:
+                # bind cube and move towards the stack_pos
+                if not self.holding_cube:
                     self._bind_cube()
         else:
-            if self.holding_cube:
-                pass
-                #if self.dist > (CUBE_DIM / 2) * 20.5:
-                #    self.holding_cube = False
-                #    pybullet.removeConstraint(self.cube_constraint_id)
-                #    self.cube_constraint_id = None
+            # move towards the cube
+            pass
+
+        #if self.cube_dist < (CUBE_DIM / 2):  # * 1.45:
+        #    if not self.holding_cube:
+        #        self._bind_cube()
+        #        #if self.ef_angle > 170:
+        #         #   self._bind_cube()
+        #else:
+        #    if self.holding_cube:
+        #        pass
+        #        #if self.dist > (CUBE_DIM / 2) * 20.5:
+        #        #    self.holding_cube = False
+        #        #    pybullet.removeConstraint(self.cube_constraint_id)
+        #        #    self.cube_constraint_id = None
+
+    def get_first_unstacked_cube(self) -> Cube:
+        """check how many cubes (must be consecutive cubes) are on stack_pos in the xy plane """
+        self.cubes_stacked = 0
+        for idx, cube in enumerate(self.cubes):
+            temp_arr = np.array([self.stack_pos[0], self.stack_pos[1], cube.pos[2]])
+            if np.allclose(cube.pos, temp_arr, atol=CUBE_DIM/2):
+                self.cubes_stacked = idx + 1
+            else:
+                break
+        return self.cubes[self.cubes_stacked-1]
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
@@ -294,15 +338,25 @@ class RoboWorldEnv(gym.Env):
         #for i in range(self.steps_between_interaction):
         pybullet.stepSimulation()
 
+        for cube in self.cubes:
+            cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
+        cube = self.get_first_unstacked_cube()
+        self.cube_id = cube.Id
+        if self.holding_cube:
+            self.target_pos = self.stack_pos
+        else:
+            self.target_pos = cube.pos
+
         self.prev_end_effector_pos = self._end_effector_pos
-        self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
+        ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
+        self._end_effector_pos = np.array(ef_pos, dtype=np.float32)
         self._update_dist()
 
         if self.render_mode == "human":
             self._process_keyboard_events()
             if self.orn_line is not None:
                 pybullet.removeUserDebugItem(self.orn_line)
-            self.orn_line = pybullet.addUserDebugLine(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], self.cube_pos)
+            self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
 
         self._process_cube_interactions()
 
@@ -339,9 +393,6 @@ class RoboWorldEnv(gym.Env):
 
         self._print_info()
 
-        # reset the robot's position
-        pybullet.restoreState(self.init_state)
-
         # remove the cube to EF constraint
         if self.holding_cube:
             self.carry_has_cube += 1
@@ -356,23 +407,16 @@ class RoboWorldEnv(gym.Env):
             pybullet.removeConstraint(self.cube_constraint_id)
             self.cube_constraint_id = None
 
-        # set a random position for the cube
-        if self.constant_cube_spawn:
-            self.cube_pos = self._get_const_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
-        else:
-            self.cube_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+        # reset the robot's position
+        print("restoring:", self.init_state)
+        pybullet.restoreState(self.init_state)
 
-        if self.use_phantom_cube:
-            self.target_pos = self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH)
+        for debug_point in self.debug_points:
+            pybullet.removeUserDebugItem(debug_point)
 
-            if self.render_mode == "human":
-                if self.point is not None:
-                    pybullet.removeUserDebugItem(self.point)
-                self.point = pybullet.addUserDebugPoints(pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
-
-        # set cube orientation and position
-        cube_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
-        pybullet.resetBasePositionAndOrientation(self.cube_id, self.cube_pos, cube_orn)
+        # reset cube_pos, target_pos values
+        self._reset_cubes()
+        self.target_pos = self.cubes[0].pos
 
         self._end_effector_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
 
@@ -388,6 +432,30 @@ class RoboWorldEnv(gym.Env):
         self.score = 0
 
         return observation, info
+
+    def _reset_cubes(self):
+        """resets all cubes and debug related widgets"""
+        #if self.use_phantom_cube:
+        #    self.target_pos = self.robot_workspace.get_rnd_point()
+        #    if self.render_mode == "human":
+        #        debug_point = pybullet.addUserDebugPoints(
+        #            pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
+        #        self.debug_points.append(debug_point)
+
+        # reset all cube positions
+        for cube in self.cubes:
+            cube.pos = self.robot_workspace.get_rnd_plane_point()
+            cube.orn = pybullet.getQuaternionFromEuler([0, 0, 0])
+            pybullet.resetBasePositionAndOrientation(cube.Id, cube.pos, cube.orn)
+
+        # reset cube vars
+        self.cubes_stacked = 0
+        self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2)
+
+        # debug point at stacking target location
+        debug_point = pybullet.addUserDebugPoints(
+            pointPositions=[self.stack_pos], pointColorsRGB=[[1, 0, 0]], pointSize=8, lifeTime=1)
+        self.debug_points.append(debug_point)
 
     def _setup(self):
         """pybullet setup"""
@@ -410,31 +478,23 @@ class RoboWorldEnv(gym.Env):
             abb_box_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.1, 0.2, 0.1])
             pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
 
-            low = self.CUBE_START_REGION_LOW
-            high = self.CUBE_START_REGION_HIGH
-            w = high[0] - low[0]
-            l = high[1] - low[1]
-            h = high[2] - low[2]
-            points = ((low[0] + 0, low[1] + 0, low[2] + 0),
-                      (low[0] + w, low[1] + 0, low[2] + 0),
-                      (low[0] + 0, low[1] + l, low[2] + 0),
-                      (low[0] + w, low[1] + l, low[2] + 0),
-                      (low[0] + 0, low[1] + 0, low[2] + h),
-                      (low[0] + w, low[1] + 0, low[2] + h),
-                      (low[0] + 0, low[1] + l, low[2] + h),
-                      (low[0] + w, low[1] + l, low[2] + h)
-                      )
-            print(len(points), len([(0, 0.5, 0.5)]*8))
+            # 8 corner points of region
+            points = self.robot_workspace.get_corners()
             pybullet.addUserDebugPoints(pointPositions=points, pointColorsRGB=[(0, 0.5, 0.5)]*8, pointSize=5, lifeTime=0)
 
         # objects for pick-n-place
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
         mass = 0.03
-        self.cube_id = pybullet.createMultiBody(1, cube_shape_id, basePosition=self.CUBE_REGION[0])#[0.70, 0.0, 0.70])
-        self.cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(self.cube_id)
+        for i in range(self.cube_count):
+            cube_id = pybullet.createMultiBody(1, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point())
+            cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(cube_id)
+            self.cubes.append(Cube(cube_id, cube_pos, cube_orn))
+        self.cube_id = self.cubes[0].Id
+        self.stack_pos = self.robot_workspace.get_rnd_plane_point()
 
-        #for i in range(200):
+        #for i in range(400):
         #    cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
+        #    cube_id = pybullet.createMultiBody(0, cube_shape_id, basePosition=self.robot_workspace.get_rnd_point())
         #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH))
         #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
 

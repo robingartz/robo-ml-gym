@@ -131,7 +131,8 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
             successes = env.unwrapped.carry_has_cube
             fails = env.unwrapped.carry_has_no_cube
             success_rate = int(successes / (successes + fails) * 100)
-            f.write(f"\n{model_filename},{learning_rate},{env.unwrapped.carry_over_score},{successes},{fails},{success_rate}" )
+            avg_score = int(env.unwrapped.carry_over_score / (successes + fails))
+            f.write(f"\n{model_filename},{learning_rate},{avg_score},{successes},{fails},{success_rate}" )
     except KeyboardInterrupt as err:
         print(err)
 
@@ -229,6 +230,22 @@ class Manager:
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
             del env, model
 
+def newSAC():
+    lrs = [
+        #(240*4, 3e-4),
+        (240*4, 1e-4),
+        (240*6, 6e-5),
+        (240*8, 3e-5),
+        (240*8, 1e-5)]
+    #m = Manager(model_types_to_run=["SAC"], total_steps=20_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m.run()
+    for es_lr in lrs:
+        ep_steps, lr = es_lr
+        for i in range(3):
+            train_last_model(total_time_steps=20_000, max_episode_steps=ep_steps, learning_rate=lr)
+    for i in range(100):
+        train_last_model(total_time_steps=20_000, max_episode_steps=240*8, learning_rate=1e-5)
+
 
 if __name__ == '__main__':
     # probably worth having a few (8) points for the cube to spawn at and run those in batches?
@@ -238,6 +255,7 @@ if __name__ == '__main__':
 
     #m = Manager(model_types_to_run=["SAC"], total_steps=23_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
+    #newSAC()
 
     # run previously trained model
     #train_last_model(total_time_steps=20_000, max_episode_steps=240)
@@ -248,11 +266,17 @@ if __name__ == '__main__':
     #for i in range(3):
     #    train_last_model(total_time_steps=20_000, max_episode_steps=240*4)
 
-    #m = Manager(model_types_to_run=["PPO"], total_steps=250_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m = Manager(model_types_to_run=["PPO"], total_steps=100_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
     #time.sleep(60*15)
-    train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=2e-6)
-    for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=2e-6)
-    for i in range(4000):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-6)
+    train_last_model(total_time_steps=20_000, max_episode_steps=240*6, learning_rate=2e-6)
+    train_last_model(total_time_steps=20_000, max_episode_steps=240*6, learning_rate=2e-6)
+    #for i in range(20):
+    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=3e-4)
+    #for i in range(20):
+    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*7, learning_rate=3e-5)
+    #for i in range(20):
+    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*7, learning_rate=2e-6)
+    #for i in range(4000):
+    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-6)
+

@@ -35,7 +35,7 @@ class Run:
     def __init__(self, constant_cube_spawn=False):
         self.constant_cube_spawn = constant_cube_spawn
 
-    def run_with_model(self, last_model_name="", max_episode_steps=240*8):
+    def run_with_model(self, last_model_name="", max_episode_steps=240*16):
         last = False
         if last_model_name == "" or last_model_name == "last":
             last = True
