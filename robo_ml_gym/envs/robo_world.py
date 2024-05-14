@@ -268,14 +268,15 @@ class RoboWorldEnv(gym.Env):
         if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
             self.reset()
 
-    def _bind_cube(self, cube):
-        print(f"bind cube {cube.Id}")
-        self.held_cube = cube
-        self.just_picked_up_cube = True
-        self.picked_up_cube_count += 1
-        self.cube_constraint_id = pybullet.createConstraint(
-            self.robot_id, self.joints_count-1, self.cube_id, -1,
-            pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+    def _pickup_cube(self, cube):
+        if self._xy_close(self.get_first_unstacked_cube().pos, self._end_effector_pos, 0.01):
+            print(f"pickup cube {cube.Id}")
+            self.held_cube = cube
+            self.just_picked_up_cube = True
+            self.picked_up_cube_count += 1
+            self.cube_constraint_id = pybullet.createConstraint(
+                self.robot_id, self.joints_count-1, self.cube_id, -1,
+                pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
         if self.cube_constraint_id is not None:
@@ -303,9 +304,8 @@ class RoboWorldEnv(gym.Env):
                     self._release_cube()
                 else:
                     if self.held_cube is None:
-                        if self._xy_close(self.get_first_unstacked_cube().pos, self._end_effector_pos, 0.01):
-                            # bind cube and move towards the stack_pos
-                            self._bind_cube(self.get_first_unstacked_cube())
+                        # pickup cube and move towards the stack_pos
+                        self._pickup_cube(self.get_first_unstacked_cube())
             else:
                 # all cubes stacked
                 pass
@@ -360,28 +360,39 @@ class RoboWorldEnv(gym.Env):
         for cube in self.cubes:
             cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
         self._check_cubes_stacked()
-        chosen_cube = self.get_first_unstacked_cube()
-        if chosen_cube is not None:
-            self.cube_id = chosen_cube.Id
-            if self.held_cube is not None:
-                self.target_pos = self.stack_pos
-            else:
-                self.target_pos = chosen_cube.pos
-        else:
-            self.target_pos = self.home_pos
+
+        chosen_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
 
         self.prev_end_effector_pos = self._end_effector_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
         self._end_effector_pos = np.array(ef_pos, dtype=np.float32)
         self._update_dist()
 
+        self._process_cube_interactions()
+        # TODO: the arm is moving too much when it releases (particularly when human helps)
+
+        if chosen_cube is not None:
+            self.cube_id = chosen_cube.Id
+            print("self.held_cube:", self.held_cube)
+            if self.held_cube is not None:
+                self.target_pos = np.array(self.stack_pos)
+                self.target_pos[2] += CUBE_DIM * self.cubes_stacked
+            else:
+                # TODO: this puts the target back to the previously held cube...
+                self.target_pos = chosen_cube.pos
+        else:
+            self.target_pos = self.home_pos
+
+        # debug point at stacking target location
+        #debug_point = pybullet.addUserDebugPoints(
+        #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
+        #self.debug_points.append(debug_point)
+
         if self.render_mode == "human":
             self._process_keyboard_events()
             if self.orn_line is not None:
                 pybullet.removeUserDebugItem(self.orn_line)
             self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
-
-        self._process_cube_interactions()
 
         terminated = False #self.held_cube is not None #False  #self.dist < 0.056
         reward = self._get_reward()
