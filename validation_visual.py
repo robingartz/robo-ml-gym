@@ -35,21 +35,21 @@ class Run:
     def __init__(self, constant_cube_spawn=False):
         self.constant_cube_spawn = constant_cube_spawn
 
-    def run_with_model(self, last_model_name="", max_episode_steps=240*16):
+    def run_with_model(self, last_model_name="", ep_step_limit=240*16):
         last = False
         if last_model_name == "" or last_model_name == "last":
             last = True
         sims = 190_000
         total_time_steps = 160_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=max_episode_steps, render_mode="human",
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=ep_step_limit, render_mode="human",
                        verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
 
         # load model
         model = None
         if last:
             model = get_previous_model(env)
-            model.max_episode_steps = max_episode_steps
+            model.ep_step_limit = ep_step_limit
         else:
             #model = PPO.load("", env)
             pass
@@ -68,7 +68,7 @@ class Run:
     def run_without_model(self):
         sims = 18
         steps_per_sim = 240 * 4
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=steps_per_sim, render_mode="human",
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=steps_per_sim, render_mode="human",
                        save_verbose=False)
 
         observation, info = env.reset()#seed=42)
