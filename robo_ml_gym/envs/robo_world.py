@@ -103,6 +103,7 @@ class RoboWorldEnv(gym.Env):
         self.stack_pos = None
         self.cubes_stacked = 0
         self.stack_tolerance = 0.01  # the tolerance allowed in the xy plane for stacked cubes to be considered stacked
+        self.pickup_tolerance = 0.015
         self.cube_id = None  # TODO: remove use (only used once)
         self.cube_constraint_id = None
         self.held_cube = None
@@ -220,9 +221,11 @@ class RoboWorldEnv(gym.Env):
 
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
+        # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 3
         PENALTY_FOR_CUBE_GROUND_COL = 1
         REWARD_FOR_HELD_CUBE = 2
+        REWARD_FOR_EF_VERTICAL = 1
         REWARD_PER_STACKED_CUBE = 5
 
         self.normalise_by_init_dist = True
@@ -232,21 +235,24 @@ class RoboWorldEnv(gym.Env):
         #reward += (self.ef_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
-            print("ef ground collision")
+            #print("ef ground collision")
             reward -= PENALTY_FOR_EF_GROUND_COL
 
         if self.held_cube is not None:
             reward += REWARD_FOR_HELD_CUBE
             if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
                 reward -= PENALTY_FOR_CUBE_GROUND_COL
-                print("cube ground collision")
+                #print("cube ground collision")
+
+        if self._is_ef_angle_vertical():
+            reward += REWARD_FOR_EF_VERTICAL
 
         reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
         if self.cubes_stacked == self.cube_count:
             ep_steps_remaining = self.ep_step_limit - self.ep_step
-            max_score_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_PER_STACKED_CUBE * self.cube_count
-            reward = max_score_per_step * ep_steps_remaining
+            max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
+            reward = max_reward_per_step * ep_steps_remaining
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50
@@ -265,9 +271,18 @@ class RoboWorldEnv(gym.Env):
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
             self.visual_verbose = not self.visual_verbose
 
+    def _is_ef_angle_vertical(self) -> bool:
+        """check if the EF angle is close to vertical"""
+        return self.ef_angle > 2.356  # 135 / 180 * np.pi = 2.356
+
     def _pickup_cube(self, cube):
-        if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.stack_tolerance):
-            if self.ef_angle > 135 / 180 * np.pi:
+        # TODO: allow picking up from an angle
+        #pybullet.rayTest()
+        #pybullet.getBasePositionAndOrientation()
+        #pybullet.getQuaternionFromEuler()
+        #pybullet.getAxisAngleFromQuaternion()
+        if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.pickup_tolerance):
+            if self._is_ef_angle_vertical():
                 self.print_visual(f"pickup cube {cube.Id}")
                 self.held_cube = cube
                 self.just_picked_up_cube = True
@@ -383,7 +398,8 @@ class RoboWorldEnv(gym.Env):
                 self.target_pos[2] += CUBE_DIM * self.cubes_stacked
             else:
                 # TODO: this puts the target back to the previously held cube...
-                self.target_pos = unstacked_cube.pos
+                self.target_pos = np.array(unstacked_cube.pos)
+                self.target_pos[2] += CUBE_DIM / 2
         else:
             self.target_pos = self.home_pos
 
@@ -500,7 +516,7 @@ class RoboWorldEnv(gym.Env):
 
         # reset cube vars
         self.cubes_stacked = 0
-        self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2)
+        self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
 
         # debug point at stacking target location
         debug_point = pybullet.addUserDebugPoints(
