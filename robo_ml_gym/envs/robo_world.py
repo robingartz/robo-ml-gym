@@ -67,7 +67,7 @@ class RoboWorldEnv(gym.Env):
         self.END_EFFECTOR_REGION_LOW = np.array([TR[0][0] - TR[1][0], TR[0][1] - TR[1][1], TR[0][2] - MAX_EF_HEIGHT])
         self.END_EFFECTOR_REGION_HIGH = np.array([TR[0][0] + TR[1][0], TR[0][1] + TR[1][1], TR[0][2] + MAX_EF_HEIGHT])
 
-        self.robot_workspace = Region([0.4, 0, 0.580]) # [0.6, 0, 0.580]
+        self.robot_workspace = Region([0.4, 0, 0.380]) # [0.6, 0, 0.580], [0.4, 0, 0.580], [0.4, 0, 0.380]
 
         # observations are dictionaries with the robot's joint angles and end effector position and
         # the cube's location and target location
@@ -476,6 +476,20 @@ class RoboWorldEnv(gym.Env):
 
         return observation, info
 
+    def _setup(self):
+        """pybullet setup"""
+        self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
+        pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+        # gravity, ground, visual objects & debug points, cubes, ABB IRB120
+        pybullet.setGravity(0, 0, -9.81)
+        plane_id = pybullet.loadURDF("plane.urdf")
+        self._setup_visual_objects()
+        self._setup_cubes()
+        self._setup_irb120()
+
+        self.init_state = pybullet.saveState()
+
     def _reset_cubes(self):
         """resets all cubes and debug related widgets"""
         #if self.use_phantom_cube:
@@ -500,18 +514,7 @@ class RoboWorldEnv(gym.Env):
             pointPositions=[self.stack_pos], pointColorsRGB=[[1, 0, 0]], pointSize=8, lifeTime=1)
         self.debug_points.append(debug_point)
 
-    def _setup(self):
-        """pybullet setup"""
-        self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
-        pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
-
-        # world building
-        pybullet.setGravity(0, 0, -9.81)
-
-        # ground
-        plane_id = pybullet.loadURDF("plane.urdf")
-
-        # visual only objects
+    def _setup_visual_objects(self):
         if self.render_mode == "human":
             # baseplate
             plate_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.1, 0.45])
@@ -525,23 +528,17 @@ class RoboWorldEnv(gym.Env):
             points = self.robot_workspace.get_corners()
             pybullet.addUserDebugPoints(pointPositions=points, pointColorsRGB=[(0, 0.5, 0.5)]*8, pointSize=5, lifeTime=0)
 
-        # objects for pick-n-place
+    def _setup_cubes(self):
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
-        mass = 0.03
+        mass = 1.0
         for i in range(self.cube_count):
-            cube_id = pybullet.createMultiBody(1, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point())
+            cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point())
             cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(cube_id)
             self.cubes.append(Cube(cube_id, cube_pos, cube_orn))
         self.cube_id = self.cubes[0].Id
         self.stack_pos = self.robot_workspace.get_rnd_plane_point()
 
-        #for i in range(400):
-        #    cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
-        #    cube_id = pybullet.createMultiBody(0, cube_shape_id, basePosition=self.robot_workspace.get_rnd_point())
-        #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.CUBE_START_REGION_LOW, self.CUBE_START_REGION_HIGH))
-        #    cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self._get_rnd_pos(self.TARGET_REGION_LOW, self.TARGET_REGION_HIGH))
-
-        # ABB IRB120
+    def _setup_irb120(self):
         # ToDo: add inertia to urdf file
         start_pos = [0, 0, 0.18/2 + 0.65 - 0.1]
         start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
@@ -555,10 +552,6 @@ class RoboWorldEnv(gym.Env):
         # set the initial joint starting positions
         pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.9, targetVelocity=0)
 
-        self.init_state = pybullet.saveState()
-
     def close(self):
-        # unneeded as reset already saves to file
-        #self._print_info()
         if self.physics_client is not None:
             pybullet.disconnect()

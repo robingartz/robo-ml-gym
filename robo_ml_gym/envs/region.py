@@ -47,7 +47,7 @@ class Region:
         """ returns a random point within the region """
         point = None
         dist = 999
-        while dist > 0.76:
+        while dist > 0.66:
             x = np.random.uniform(self.abs_min_xyz[0], self.abs_max_xyz[0])
             y = np.random.uniform(self.abs_min_xyz[1], self.abs_max_xyz[1])
             z = np.random.uniform(self.abs_min_xyz[2], self.abs_max_xyz[2])
