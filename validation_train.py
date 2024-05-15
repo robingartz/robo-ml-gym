@@ -128,8 +128,8 @@ def train_last_model(total_time_steps=30_000, ep_step_limit=240*4, constant_cube
     try:
         model.learn(total_timesteps=total_time_steps)
         with open("scores.txt", 'a') as f:
-            successes = env.unwrapped.carry_has_cube
-            fails = env.unwrapped.carry_has_no_cube
+            successes = env.unwrapped.success_tally
+            fails = env.unwrapped.fail_tally
             success_rate = int(successes / (successes + fails) * 100)
             avg_score = int(env.unwrapped.carry_over_score / (successes + fails))
             f.write(f"\n{model_filename},{learning_rate},{avg_score},{successes},{fails},{success_rate}" )
@@ -271,7 +271,9 @@ if __name__ == '__main__':
     #time.sleep(60*15)
     #train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-6)
     for i in range(20):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-6)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=2e-6)
+    for i in range(100):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=1e-6)
     #for i in range(20):
     #    train_last_model(total_time_steps=100_000, ep_step_limit=240*7, learning_rate=3e-5)
     #for i in range(20):
