@@ -214,23 +214,31 @@ class RoboWorldEnv(gym.Env):
 
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
+        PENALTY_FOR_EF_GROUND_COL = 3
+        PENALTY_FOR_CUBE_GROUND_COL = 1
+        REWARD_FOR_HELD_CUBE = 2
+        REWARD_PER_STACKED_CUBE = 5
+
         self.normalise_by_init_dist = True
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        reward = 1 / max(self.dist, 0.05 / 2)
+        reward = 40 / max(self.dist, 0.05 / 2)
         #reward += (self.ef_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
-            reward -= 10
+            reward -= PENALTY_FOR_EF_GROUND_COL
 
         if self.held_cube is not None:
-            reward += 2
+            reward += REWARD_FOR_HELD_CUBE
             if self.held_cube.pos < CUBE_DIM / 2 - 0.0001:
-                reward -= 1
+                reward -= PENALTY_FOR_CUBE_GROUND_COL
 
-        reward += 3 * self.cubes_stacked
+        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+
         if self.cubes_stacked == self.cube_count:
-            reward += self.total_steps_limit
+            ep_steps_remaining = self.ep_step_limit - self.ep_step
+            max_score_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_PER_STACKED_CUBE * self.cube_count
+            reward = max_score_per_step * ep_steps_remaining
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50

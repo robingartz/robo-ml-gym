@@ -5,7 +5,7 @@ class Region:
     def __init__(self, robot_pos):
         self.robot_pos = np.array(robot_pos)
         self.abs_min_xyz = self.robot_pos + np.array([0.200, -0.320, -0.380])
-        self.abs_max_xyz = self.robot_pos + np.array([0.570, +0.320, +0.000])
+        self.abs_max_xyz = self.robot_pos + np.array([0.540, +0.320, +0.000])
 
     def is_point_within(self, arr: np.array):
         """ determines whether the given array is within the region """
