@@ -83,7 +83,6 @@ class RoboWorldEnv(gym.Env):
 
         # scoring
         self.score = 0
-        self.carry_over_score = 0
 
         # robot vars
         self.robot_id = None
@@ -114,10 +113,15 @@ class RoboWorldEnv(gym.Env):
         self.picked_up_cube_count = 0
         self.orn_line = None  # debug line between EF and target
 
-        # unused
-        self.constant_cube_spawn = constant_cube_spawn
+        # used from outer scope
+        self.carry_over_score = 0
         self.carry_has_cube = 0
         self.carry_has_no_cube = 0
+        self.success_tally = 0
+        self.fail_tally = 0
+
+        # unused
+        self.constant_cube_spawn = constant_cube_spawn
         self.prev_dist = self.dist
         self.prev_end_effector_pos = None
         self.just_picked_up_cube = False
@@ -168,7 +172,13 @@ class RoboWorldEnv(gym.Env):
         cube = self.get_first_unstacked_cube()
         self.ef_cube_dist = 1.0
         self.cube_stack_dist = 1.0
+
+        if self.cubes_stacked == self.cube_count:
+            # all cubes are stacked
+            cube = self.cubes[0]
+
         if cube is not None:
+            # cube is held
             cube_pos = np.array(cube.pos)
             cube_pos[2] += CUBE_DIM / 2
             self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
@@ -481,6 +491,13 @@ class RoboWorldEnv(gym.Env):
             self.carry_has_cube += 1
         else:
             self.carry_has_no_cube += 1
+
+        # tally full success
+        if self.cubes_stacked == self.cube_count:
+            self.success_tally += 1
+        else:
+            self.fail_tally += 1
+
         self.held_cube = None
         self.picked_up_cube_count = 0
         self.prev_dist = self.dist = 1.0
