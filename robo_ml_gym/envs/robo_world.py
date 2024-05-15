@@ -94,6 +94,10 @@ class RoboWorldEnv(gym.Env):
         self.home_pos = np.array([0.9, 0.0, 0.30])  # the home position for the robot once stacking is completed
         self.target_pos = None
         self.dist = 1.0
+        self.cube_stack_dist = 1.0
+
+        self.init_ef_cube_dist = 1.0
+        self.init_cube_stack_dist = 1.0
 
         # cube vars
         self.use_phantom_cube = False
@@ -102,7 +106,7 @@ class RoboWorldEnv(gym.Env):
         self.cube_ids = []
         self.stack_pos = None
         self.cubes_stacked = 0
-        self.stack_tolerance = 0.01  # the tolerance allowed in the xy plane for stacked cubes to be considered stacked
+        self.stack_tolerance = 0.05  # the tolerance allowed in the xy plane for stacked cubes to be considered stacked
         self.pickup_tolerance = 0.015
         self.cube_id = None  # TODO: remove use (only used once)
         self.cube_constraint_id = None
@@ -142,8 +146,9 @@ class RoboWorldEnv(gym.Env):
         elapsed = int(time.time() - self.start_time)
         self.score = max(0, self.score)
         self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps}, sim: {self.resets}, "
-                           f"steps: {self.ep_step}, dist: %.4f, score: %4d, elapsed: {elapsed}s, "
-                           f"has cube: {self.held_cube is not None}" % (self.dist, int(self.score)))
+                           f"steps: {self.ep_step}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
+                           f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
+                           % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
 
     def _get_time_remaining(self):
         # time remaining info
@@ -161,13 +166,17 @@ class RoboWorldEnv(gym.Env):
         # TODO: need self.dist for reward func
         # distance between EF to cube and stack pos
         cube = self.get_first_unstacked_cube()
-        self.cube_dist = 0.0
+        self.ef_cube_dist = 1.0
+        self.cube_stack_dist = 1.0
         if cube is not None:
             cube_pos = np.array(cube.pos)
             cube_pos[2] += CUBE_DIM / 2
-            self.cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
-        self.stack_dist = abs(np.linalg.norm(self.stack_pos - self.ef_pos))
-        self.dist = self.cube_dist
+            self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
+            self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
+
+        self.dist = self.ef_cube_dist
+        if cube is not None:
+            self.dist = self.cube_stack_dist
 
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
@@ -219,19 +228,35 @@ class RoboWorldEnv(gym.Env):
 
         return observations
 
+    def _get_simple_reward(self):
+        REWARD_PER_STACKED_CUBE = 5
+        reward = 1 / max(self.ef_cube_dist, 0.05 / 2) / 40
+        reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
+        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        return reward
+
+    def _get_simple_reward_normalised(self):
+        REWARD_PER_STACKED_CUBE = 5
+        norm_ef_cube_dist = self.ef_cube_dist / self.init_ef_cube_dist
+        reward = 1 / max(norm_ef_cube_dist, 0.05 / 2) / 40
+        norm_cube_stack_dist = self.cube_stack_dist / self.init_cube_stack_dist
+        reward += 1 / max(norm_cube_stack_dist, 0.05 / 2) / 40
+        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        return reward
+
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 3
         PENALTY_FOR_CUBE_GROUND_COL = 1
-        REWARD_FOR_HELD_CUBE = 2
+        REWARD_FOR_HELD_CUBE = 1
         REWARD_FOR_EF_VERTICAL = 1
         REWARD_PER_STACKED_CUBE = 5
 
         self.normalise_by_init_dist = True
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        reward = 1 / max(self.dist, 0.05 / 2) / 40
+        reward = 1 / max(self.ef_cube_dist, 0.05 / 2) / 40
         #reward += (self.ef_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
@@ -239,6 +264,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_EF_GROUND_COL
 
         if self.held_cube is not None:
+            reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
             reward += REWARD_FOR_HELD_CUBE
             if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
                 reward -= PENALTY_FOR_CUBE_GROUND_COL
@@ -256,6 +282,7 @@ class RoboWorldEnv(gym.Env):
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50
+        reward = self._get_simple_reward()
 
         self.score += reward
         self.prev_dist = self.dist
@@ -343,7 +370,7 @@ class RoboWorldEnv(gym.Env):
             pass
 
         self.print_visual(f"stacked: {self.cubes_stacked}, id: {self.cube_id}, cube close: {self.held_cube is not None}")
-        #, stack close: {self.stack_dist < (CUBE_DIM / 2)}, ")
+        #, stack close: {self.cube_stack_dist < (CUBE_DIM / 2)}, ")
 
     def get_first_unstacked_cube(self):
         """check how many cubes (must be consecutive cubes) are on stack_pos in the xy plane"""
@@ -434,6 +461,10 @@ class RoboWorldEnv(gym.Env):
 
         self.total_steps += 1
         self.ep_step += 1
+
+        if self.ep_step == self.ep_step_limit or terminated:
+            self._print_info()
+
         return observation, reward, terminated, False, info
 
     def reset(self, seed=None, options=None):
@@ -444,8 +475,6 @@ class RoboWorldEnv(gym.Env):
         # set up the environment if not yet done
         if self.physics_client is None:
             self._setup()
-
-        self._print_info()
 
         # remove the cube to EF constraint
         if self.held_cube is not None:
@@ -467,10 +496,13 @@ class RoboWorldEnv(gym.Env):
             pybullet.removeUserDebugItem(debug_point)
 
         # reset cube_pos, target_pos values
-        self._reset_cubes()
-        self.target_pos = self.cubes[0].pos
-
         self.ef_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
+        self.target_pos = self.cubes[0].pos
+        self._reset_cubes()
+
+        self._update_dist()
+        self.init_ef_cube_dist = self.ef_cube_dist
+        self.init_cube_stack_dist = self.cube_stack_dist
 
         observation = self._get_obs()
         info = self._get_info()
@@ -517,6 +549,10 @@ class RoboWorldEnv(gym.Env):
         # reset cube vars
         self.cubes_stacked = 0
         self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
+
+        self._update_dist()
+        self.init_ef_cube_dist = self.ef_cube_dist
+        self.init_cube_stack_dist = self.cube_stack_dist
 
         # debug point at stacking target location
         debug_point = pybullet.addUserDebugPoints(
