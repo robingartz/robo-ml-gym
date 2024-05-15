@@ -280,10 +280,14 @@ class RoboWorldEnv(gym.Env):
 
     def _release_cube(self):
         if self.cube_constraint_id is not None:
-            print(f"release cube {self.held_cube.Id}")
-            self.held_cube = None
-            pybullet.removeConstraint(self.cube_constraint_id)
-            self.cube_constraint_id = None
+            linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
+            if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
+                print(f"release cube {self.held_cube.Id}")
+                self.held_cube = None
+                pybullet.removeConstraint(self.cube_constraint_id)
+                self.cube_constraint_id = None
+            else:
+                print("too fast:", abs(np.linalg.norm(np.array(linear_vel))))
 
     def _xy_close(self, arr1, arr2, a_tol: float):
         """check if x & y for arr1 & arr2 are within tolerance a_tol"""
