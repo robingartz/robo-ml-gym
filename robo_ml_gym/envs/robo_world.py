@@ -120,11 +120,12 @@ class RoboWorldEnv(gym.Env):
         self.start_time = time.time()
 
         self.physics_client = None
-        self.cube_count = 4
+        self.cube_count = 1
         self.cubes = []
         self.cube_ids = []
         self.stack_pos = None
         self.cubes_stacked = 0
+        self.stack_tolerance = 0.01
 
         self.cube_id = None
         self.robot_id = None
@@ -137,7 +138,7 @@ class RoboWorldEnv(gym.Env):
         self.line_y = None
         self.line_z = None
         self.target_pos = None
-        self.home_pos = np.array([0.4, 0.0, 0.5])
+        self.home_pos = np.array([0.9, 0.0, 0.3])
         self.prev_dist = self.dist = 1.0
         # 0 deg = vertical from below, 90 deg = horizontal EF, 180 deg = vertical from above
         self.ef_angle = np.pi / 2
@@ -185,11 +186,14 @@ class RoboWorldEnv(gym.Env):
     def _update_dist(self):
         # TODO: need self.dist for reward func
         # distance between EF to cube and stack pos
-        #cube = self.get_first_unstacked_cube()
-        #self.cube_dist = 0.0
-        #if cube is not None:
-        #    self.cube_dist = abs(np.linalg.norm(cube.pos - self._end_effector_pos))
-        #self.stack_dist = abs(np.linalg.norm(self.stack_pos - self._end_effector_pos))
+        cube = self.get_first_unstacked_cube()
+        self.cube_dist = 0.0
+        if cube is not None:
+            cube_pos = np.array(cube.pos)
+            cube_pos[2] += CUBE_DIM / 2
+            self.cube_dist = abs(np.linalg.norm(cube_pos - self._end_effector_pos))
+        self.stack_dist = abs(np.linalg.norm(self.stack_pos - self._end_effector_pos))
+        self.dist = self.cube_dist
 
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
@@ -269,14 +273,15 @@ class RoboWorldEnv(gym.Env):
             self.reset()
 
     def _pickup_cube(self, cube):
-        if self._xy_close(self.get_first_unstacked_cube().pos, self._end_effector_pos, 0.01):
-            print(f"pickup cube {cube.Id}")
-            self.held_cube = cube
-            self.just_picked_up_cube = True
-            self.picked_up_cube_count += 1
-            self.cube_constraint_id = pybullet.createConstraint(
-                self.robot_id, self.joints_count-1, self.cube_id, -1,
-                pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+        if self._xy_close(self.get_first_unstacked_cube().pos, self._end_effector_pos, self.stack_tolerance):
+            if self.ef_angle > 160 / 180 * np.pi:
+                print(f"pickup cube {cube.Id}")
+                self.held_cube = cube
+                self.just_picked_up_cube = True
+                self.picked_up_cube_count += 1
+                self.cube_constraint_id = pybullet.createConstraint(
+                    self.robot_id, self.joints_count-1, self.cube_id, -1,
+                    pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
         if self.cube_constraint_id is not None:
@@ -302,8 +307,8 @@ class RoboWorldEnv(gym.Env):
 
         if self.held_cube is None:
             # move towards the cube
-            if self.cubes_stacked < 4:
-                if self._xy_close(self.get_first_unstacked_cube().pos, self.stack_pos, CUBE_DIM / 1):
+            if self.cubes_stacked < self.cube_count:
+                if self._xy_close(self.get_first_unstacked_cube().pos, self.stack_pos, self.stack_tolerance):
                     # release cube and move towards the next cube
                     self._release_cube()
                 else:
@@ -314,9 +319,9 @@ class RoboWorldEnv(gym.Env):
                 # all cubes stacked
                 pass
 
-        elif self._xy_close(self.held_cube.pos, self.stack_pos, 0.01):
+        elif self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
             print("cube on stack target")
-            if self.cubes_stacked == 4:
+            if self.cubes_stacked == self.cube_count:
                 if self.cube_constraint_id is not None:
                     self.held_cube = None
                     pybullet.removeConstraint(self.cube_constraint_id)
@@ -340,7 +345,7 @@ class RoboWorldEnv(gym.Env):
     def _check_cubes_stacked(self):
         self.cubes_stacked = 0
         for idx, cube in enumerate(self.cubes):
-            if self._xy_close(cube.pos, self.stack_pos, CUBE_DIM/1):
+            if self._xy_close(cube.pos, self.stack_pos, self.stack_tolerance):
                 #temp_arr = np.array([self.stack_pos[0], self.stack_pos[1], cube.pos[2]])
                 #if np.allclose(cube.pos, temp_arr, atol=CUBE_DIM/2):
                 self.cubes_stacked = idx + 1
@@ -365,7 +370,7 @@ class RoboWorldEnv(gym.Env):
             cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
         self._check_cubes_stacked()
 
-        chosen_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
+        unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
 
         self.prev_end_effector_pos = self._end_effector_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
@@ -375,15 +380,15 @@ class RoboWorldEnv(gym.Env):
         self._process_cube_interactions()
         # TODO: the arm is moving too much when it releases (particularly when human helps)
 
-        if chosen_cube is not None:
-            self.cube_id = chosen_cube.Id
+        if unstacked_cube is not None:
+            self.cube_id = unstacked_cube.Id
             print("self.held_cube:", self.held_cube)
             if self.held_cube is not None:
                 self.target_pos = np.array(self.stack_pos)
                 self.target_pos[2] += CUBE_DIM * self.cubes_stacked
             else:
                 # TODO: this puts the target back to the previously held cube...
-                self.target_pos = chosen_cube.pos
+                self.target_pos = unstacked_cube.pos
         else:
             self.target_pos = self.home_pos
 
