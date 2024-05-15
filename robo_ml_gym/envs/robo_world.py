@@ -540,7 +540,7 @@ class RoboWorldEnv(gym.Env):
 
     def _setup_irb120(self):
         # ToDo: add inertia to urdf file
-        start_pos = [0, 0, 0.18/2 + 0.65 - 0.1]
+        start_pos = [0, 0, 0.18/2 + 0.65 - 0.3]
         start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
         urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
         if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
