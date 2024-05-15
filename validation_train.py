@@ -12,7 +12,7 @@ class Run:
         self.total_time_steps = total_time_steps
         file_name_append = "A3"
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps=self.total_time_steps)
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps_limit=self.total_time_steps)
 
         # create new models
         #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
@@ -115,7 +115,7 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
                    max_episode_steps=max_episode_steps,
                    verbose=False,
-                   total_steps=total_time_steps,
+                   total_steps_limit=total_time_steps,
                    constant_cube_spawn=constant_cube_spawn)
 
     model, prev_steps = get_previous_model(env, custom_objects)
@@ -144,7 +144,7 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
 
 class Manager:
     def __init__(self, model_types_to_run=("PPO", "SAC", "A2C"), do_short_time_steps=False, vary_max_steps=False,
-                 vary_learning_rates=False, repeats=1, total_steps=None, constant_cube_spawn=False):
+                 vary_learning_rates=False, repeats=1, total_steps_limit=None, constant_cube_spawn=False):
         # selected run options
         self.model_types_to_run = model_types_to_run
         self.do_short_time_steps = do_short_time_steps
@@ -162,9 +162,9 @@ class Manager:
         self.total_time_steps_dict = {"PPO": 5_000, "SAC": 1_000, "A2C": 750_000}
         if self.do_short_time_steps:
             self.total_time_steps_dict = {"PPO": 6_000, "SAC": 700, "A2C": 2_000}
-        if total_steps is not None:
+        if total_steps_limit is not None:
             for key in self.total_time_steps_dict.keys():
-                self.total_time_steps_dict[key] = total_steps
+                self.total_time_steps_dict[key] = total_steps_limit
 
         # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
@@ -199,7 +199,7 @@ class Manager:
             #PPO(n_steps=2048, batch_size=64, n_epochs=10)
 
             env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=False,
-                           total_steps=self.total_time_steps_dict[model_name],
+                           total_steps_limit=self.total_time_steps_dict[model_name],
                            constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
                                                  n_steps=240*12, batch_size=60, n_epochs=10)
@@ -212,7 +212,7 @@ class Manager:
         model_name = "SAC"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
@@ -223,7 +223,7 @@ class Manager:
         model_name = "A2C"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
@@ -237,7 +237,7 @@ def newSAC():
         (240*6, 6e-5),
         (240*8, 3e-5),
         (240*8, 1e-5)]
-    #m = Manager(model_types_to_run=["SAC"], total_steps=20_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m = Manager(model_types_to_run=["SAC"], total_steps_limit=20_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
     for es_lr in lrs:
         ep_steps, lr = es_lr
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     #m = Manager(model_types_to_run=["PPO", "SAC", "A2C"], do_short_time_steps=True, vary_max_steps=True,
     #            vary_learning_rates=False, repeats=2)
 
-    #m = Manager(model_types_to_run=["SAC"], total_steps=23_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m = Manager(model_types_to_run=["SAC"], total_steps_limit=23_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
     #newSAC()
 
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     #for i in range(3):
     #    train_last_model(total_time_steps=20_000, max_episode_steps=240*4)
 
-    #m = Manager(model_types_to_run=["PPO"], total_steps=100_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
     #m.run()
     #time.sleep(60*15)
     train_last_model(total_time_steps=20_000, max_episode_steps=240*6, learning_rate=2e-6)
