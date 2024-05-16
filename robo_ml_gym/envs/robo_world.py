@@ -542,15 +542,10 @@ class RoboWorldEnv(gym.Env):
         #            pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
         #        self.debug_points.append(debug_point)
 
-        # reset all cube positions
-        for cube in self.cubes:
-            cube.pos = self.robot_workspace.get_rnd_plane_point()
-            cube.orn = pybullet.getQuaternionFromEuler([0, 0, 0])
-            pybullet.resetBasePositionAndOrientation(cube.Id, cube.pos, cube.orn)
-
         # reset cube vars
         self.cubes_stacked = 0
         self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
+        self._setup_cube_positions()
 
         self._update_dist()
         self.init_ef_cube_dist = self.ef_cube_dist
@@ -575,6 +570,18 @@ class RoboWorldEnv(gym.Env):
             points = self.robot_workspace.get_corners()
             pybullet.addUserDebugPoints(pointPositions=points, pointColorsRGB=[(0, 0.5, 0.5)]*8, pointSize=5, lifeTime=0)
 
+    def _setup_cube_positions(self):
+        # reset all cube positions
+        for cube in self.cubes:
+            cube.pos = self.robot_workspace.get_rnd_plane_point()
+            self._check_cubes_stacked()
+            while self.cubes_stacked > 0:
+                cube.pos = self.robot_workspace.get_rnd_plane_point()
+                self._check_cubes_stacked()
+
+            cube.orn = pybullet.getQuaternionFromEuler([0, 0, 0])
+            pybullet.resetBasePositionAndOrientation(cube.Id, cube.pos, cube.orn)
+
     def _setup_cubes(self):
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
         mass = 1.0
@@ -584,6 +591,7 @@ class RoboWorldEnv(gym.Env):
             self.cubes.append(Cube(cube_id, cube_pos, cube_orn))
         self.cube_id = self.cubes[0].Id
         self.stack_pos = self.robot_workspace.get_rnd_plane_point()
+        self._setup_cube_positions()
 
     def _setup_irb120(self):
         # ToDo: add inertia to urdf file
