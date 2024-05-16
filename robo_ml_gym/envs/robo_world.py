@@ -108,6 +108,7 @@ class RoboWorldEnv(gym.Env):
         self.cubes_stacked = 0
         self.stack_tolerance = 0.05  # the tolerance allowed in the xy plane for stacked cubes to be considered stacked
         self.pickup_tolerance = 0.015
+        self.pickup_xy_tolerance = 0.015
         self.cube_id = None  # TODO: remove use (only used once)
         self.cube_constraint_id = None
         self.held_cube = None
@@ -304,15 +305,16 @@ class RoboWorldEnv(gym.Env):
         #pybullet.getBasePositionAndOrientation()
         #pybullet.getQuaternionFromEuler()
         #pybullet.getAxisAngleFromQuaternion()
-        if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.pickup_tolerance):
-            if self._is_ef_angle_vertical():
-                self.print_visual(f"pickup cube {cube.Id}")
-                self.held_cube = cube
-                self.just_picked_up_cube = True
-                self.picked_up_cube_count += 1
-                self.cube_constraint_id = pybullet.createConstraint(
-                    self.robot_id, self.joints_count-1, self.cube_id, -1,
-                    pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+        if self.ef_cube_dist < self.pickup_tolerance:
+            if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.pickup_xy_tolerance):
+                if self._is_ef_angle_vertical():
+                    self.print_visual(f"pickup cube {cube.Id}")
+                    self.held_cube = cube
+                    self.just_picked_up_cube = True
+                    self.picked_up_cube_count += 1
+                    self.cube_constraint_id = pybullet.createConstraint(
+                        self.robot_id, self.joints_count-1, self.cube_id, -1,
+                        pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
         if self.cube_constraint_id is not None:
