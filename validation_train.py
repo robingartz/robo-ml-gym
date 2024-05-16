@@ -273,17 +273,17 @@ if __name__ == '__main__':
     m.run()
     #train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-6)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=3e-4)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*4, learning_rate=3e-4)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-4)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*4, learning_rate=1e-4)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=5e-5)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-5)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-5)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=1e-5)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=5e-6)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*8, learning_rate=5e-6)
     for i in range(100):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-6)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*8, learning_rate=1e-6)
     #for i in range(20):
     #    train_last_model(total_time_steps=100_000, ep_step_limit=240*7, learning_rate=3e-5)
     #for i in range(20):
