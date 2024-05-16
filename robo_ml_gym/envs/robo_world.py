@@ -33,7 +33,7 @@ FLT_EPSILON = 0.0000001
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
+    def __init__(self, render_mode=None, verbose=True, save_verbose=True, max_episode_steps=None, ep_step_limit=None,
                  total_steps_limit=None, fname_app="_", constant_cube_spawn=False):
         # relative min/max
         self.REL_REGION_MIN = np.array([-REL_MAX_DIS, -REL_MAX_DIS, -REL_MAX_DIS])
@@ -76,8 +76,11 @@ class RoboWorldEnv(gym.Env):
         # step/reset counters
         self.resets = 0  # the number of resets; e.g. [0 to 100]
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
-        self.ep_step_limit = ep_step_limit  # an episode will reset at this point; e.g. 240
-        self.max_episode_steps = self.ep_step_limit
+        if max_episode_steps == None:
+            max_episode_steps = ep_step_limit
+            print("How TF is max_episode_steps None, but now set to:", max_episode_steps)
+        self.ep_step_limit = max_episode_steps  # an episode will reset at this point; e.g. 240
+        self.max_episode_steps = max_episode_steps
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
         # total_steps_limit: training is completed once total_steps >= total_steps_limit; e.g. 200_000
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
@@ -460,7 +463,7 @@ class RoboWorldEnv(gym.Env):
         self.total_steps += 1
         self.ep_step += 1
 
-        if self.ep_step == self.ep_step_limit or terminated:
+        if self.ep_step == self.ep_step_limit-1 or terminated:
             self._print_info()
 
         return observation, reward, terminated, False, info
