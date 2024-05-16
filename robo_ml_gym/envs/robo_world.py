@@ -77,6 +77,7 @@ class RoboWorldEnv(gym.Env):
         self.resets = 0  # the number of resets; e.g. [0 to 100]
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
         self.ep_step_limit = ep_step_limit  # an episode will reset at this point; e.g. 240
+        self.max_episode_steps = self.ep_step_limit
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
         # total_steps_limit: training is completed once total_steps >= total_steps_limit; e.g. 200_000
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
@@ -573,10 +574,10 @@ class RoboWorldEnv(gym.Env):
     def _setup_cube_positions(self):
         # reset all cube positions
         for cube in self.cubes:
-            cube.pos = self.robot_workspace.get_rnd_plane_point()
+            cube.pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2)
             self._check_cubes_stacked()
             while self.cubes_stacked > 0:
-                cube.pos = self.robot_workspace.get_rnd_plane_point()
+                cube.pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2)
                 self._check_cubes_stacked()
 
             cube.orn = pybullet.getQuaternionFromEuler([0, 0, 0])
@@ -586,11 +587,11 @@ class RoboWorldEnv(gym.Env):
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])
         mass = 1.0
         for i in range(self.cube_count):
-            cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point())
+            cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2))
             cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(cube_id)
             self.cubes.append(Cube(cube_id, cube_pos, cube_orn))
         self.cube_id = self.cubes[0].Id
-        self.stack_pos = self.robot_workspace.get_rnd_plane_point()
+        self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
         self._setup_cube_positions()
 
     def _setup_irb120(self):
