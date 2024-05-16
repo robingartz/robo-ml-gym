@@ -192,21 +192,6 @@ class RoboWorldEnv(gym.Env):
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
         self.ef_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
 
-    def _get_const_pos(self, region_low, region_high):
-        pos = np.array([(region_low[0] + region_high[0]) / 2,
-                        (region_low[1] + region_high[1]) / 2,
-                        (region_low[2] + region_high[2]) / 2])
-        pos = np.array([(region_low[0] + 0.03),
-                        (region_low[1] + 0.03),
-                        (region_low[2] + 0.03)])
-        return pos
-
-    def _get_rnd_pos(self, region_low, region_high):
-        pos = np.array([self.np_random.uniform(region_low[0], region_high[0]),
-                        self.np_random.uniform(region_low[1], region_high[1]),
-                        self.np_random.uniform(region_low[2], region_high[2])])
-        return pos
-
     def render(self):
         if self.render_mode == "rgb_array":
             return self._render_frame()
