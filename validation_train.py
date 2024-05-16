@@ -5,7 +5,7 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
-GROUP_PREFIX = "A1"
+GROUP_PREFIX = "A3"
 
 
 class Run:
@@ -272,6 +272,8 @@ if __name__ == '__main__':
     m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
     m.run()
     #train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-6)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*4, learning_rate=1e-3)
     for i in range(40):
         train_last_model(total_time_steps=100_000, ep_step_limit=240*4, learning_rate=3e-4)
     for i in range(40):

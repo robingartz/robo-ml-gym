@@ -277,7 +277,7 @@ class RoboWorldEnv(gym.Env):
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50
-        reward = self._get_simple_reward()
+        #reward = self._get_simple_reward()
 
         self.score += reward
         self.prev_dist = self.dist
