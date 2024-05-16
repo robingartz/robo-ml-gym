@@ -5,12 +5,14 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
+GROUP_PREFIX = "A1"
+
 
 class Run:
     def __init__(self, total_time_steps=500_000, env=None, model=None, save_interval=0):
         result = {"keyboard_interrupt": False}
         self.total_time_steps = total_time_steps
-        file_name_append = "A3"
+        file_name_append = GROUP_PREFIX
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=240*2, verbose=True, total_steps_limit=self.total_time_steps)
 
@@ -59,7 +61,7 @@ class Run:
             raise KeyboardInterrupt()
 
 
-def get_model_name(model, total_time_steps, file_name_append="A3"):
+def get_model_name(model, total_time_steps, file_name_append=GROUP_PREFIX):
     algo_name = str(model.__class__).split('.')[-1].strip("'>")
     time_s = datetime.now().strftime("%y%m%d_%H%M%S")
     name = f"{algo_name}-v{int(total_time_steps/1000)}k-{file_name_append}-{time_s}"
@@ -266,14 +268,22 @@ if __name__ == '__main__':
     #for i in range(3):
     #    train_last_model(total_time_steps=20_000, ep_step_limit=240*4)
 
-    #m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
-    #m.run()
     #time.sleep(60*15)
+    m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
+    m.run()
     #train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=5e-6)
-    for i in range(20):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=2e-6)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=3e-4)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-4)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=5e-5)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-5)
+    for i in range(40):
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=5e-6)
     for i in range(100):
-        train_last_model(total_time_steps=100_000, ep_step_limit=240*6, learning_rate=1e-6)
+        train_last_model(total_time_steps=100_000, ep_step_limit=240*10, learning_rate=1e-6)
     #for i in range(20):
     #    train_last_model(total_time_steps=100_000, ep_step_limit=240*7, learning_rate=3e-5)
     #for i in range(20):

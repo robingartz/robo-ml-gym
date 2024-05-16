@@ -6,3 +6,8 @@ class Cube:
         self.pos = cube_pos
         self.orn = cube_orn
 
+    def get_top_pos(self):
+        temp = self.pos
+        temp[2] += 0.025
+        return temp
+
