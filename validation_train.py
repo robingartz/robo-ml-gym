@@ -203,8 +203,10 @@ class Manager:
             env = gym.make(self.env_name, ep_step_limit=self.max_ep_steps, verbose=False,
                            total_steps_limit=self.total_time_steps_dict[model_name],
                            constant_cube_spawn=self.constant_cube_spawn)
+            #model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
+            #                                     n_steps=240*12, batch_size=60, n_epochs=10)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
-                                                 n_steps=240*12, batch_size=60, n_epochs=10)
+                                                 n_steps=240*12)#, batch_size=60, n_epochs=10)
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
