@@ -14,7 +14,7 @@ class Run:
         self.total_time_steps = total_time_steps
         file_name_append = GROUP_PREFIX
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=240*2, verbose=True, total_steps_limit=self.total_time_steps)
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", max_episode_steps=240*2, verbose=True, total_steps_limit=self.total_time_steps)
 
         # create new models
         #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
@@ -115,7 +115,7 @@ def get_previous_model(env, custom_objects):
 def train_last_model(total_time_steps=30_000, ep_step_limit=240*4, constant_cube_spawn=False, learning_rate=5e-4):
     custom_objects = {'learning_rate': learning_rate}
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
-                   ep_step_limit=ep_step_limit,
+                   max_episode_steps=ep_step_limit,
                    verbose=False,
                    total_steps_limit=total_time_steps,
                    constant_cube_spawn=constant_cube_spawn)
@@ -200,13 +200,13 @@ class Manager:
             lr = self.lrs_dict[model_name][self.lr_i]
             #PPO(n_steps=2048, batch_size=64, n_epochs=10)
 
-            env = gym.make(self.env_name, ep_step_limit=self.max_ep_steps, verbose=False,
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=False,
                            total_steps_limit=self.total_time_steps_dict[model_name],
                            constant_cube_spawn=self.constant_cube_spawn)
             #model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
             #                                     n_steps=240*12, batch_size=60, n_epochs=10)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto",
-                                                 n_steps=240*12)#, batch_size=60, n_epochs=10)
+                                                 n_steps=240*4)#, batch_size=60, n_epochs=10)
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
             Run(total_time_steps=self.total_time_steps_dict[model_name], env=env, model=model)
@@ -216,7 +216,7 @@ class Manager:
         model_name = "SAC"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, ep_step_limit=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
@@ -227,7 +227,7 @@ class Manager:
         model_name = "A2C"
         if model_name in self.model_types_to_run:
             lr = self.lrs_dict[model_name][self.lr_i]
-            env = gym.make(self.env_name, ep_step_limit=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
+            env = gym.make(self.env_name, max_episode_steps=self.max_ep_steps, verbose=True, total_steps_limit=self.total_time_steps_dict[model_name], constant_cube_spawn=self.constant_cube_spawn)
             model = self.models_dict[model_name](self.policy_name, env, learning_rate=lr, n_steps=5, verbose=1, device="auto")
             # ensure info logs have the same name as the model
             env.unwrapped.set_fname(get_model_name(model, self.total_time_steps_dict[model_name]).strip("models/"))
