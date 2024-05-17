@@ -251,7 +251,7 @@ class RoboWorldEnv(gym.Env):
         PENALTY_FOR_CUBE_GROUND_COL = 1
         REWARD_FOR_HELD_CUBE = 1
         REWARD_FOR_EF_VERTICAL = 1
-        REWARD_PER_STACKED_CUBE = 5
+        REWARD_PER_STACKED_CUBE = 0
 
         self.normalise_by_init_dist = True
         # TODO: try normalise the reward by the starting distance
@@ -302,6 +302,18 @@ class RoboWorldEnv(gym.Env):
         """check if the EF angle is close to vertical"""
         return self.ef_angle > 2.356  # 135 / 180 * np.pi = 2.356
 
+    def _try_pickup_cube(self, cube):
+        # TODO: allow picking up from an angle
+        if self.ef_cube_dist < self.pickup_tolerance:
+            if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
+                if self._is_ef_angle_vertical():
+                    self.held_cube = cube
+                    self.just_picked_up_cube = True
+                    self.picked_up_cube_count += 1
+                    self.cube_constraint_id = pybullet.createConstraint(
+                        self.robot_id, self.joints_count-1, self.cube_id, -1,
+                        pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+
     def _pickup_cube(self, cube):
         # TODO: allow picking up from an angle
         #pybullet.rayTest()
@@ -339,6 +351,16 @@ class RoboWorldEnv(gym.Env):
         return False
 
     def _process_cube_interactions(self):
+        """pickup cube if EF close"""
+        if self.held_cube is not None:
+            self.just_picked_up_cube = False
+
+        if self.held_cube is None:
+            # pickup cube and move towards the stack_pos
+            self._try_pickup_cube(self.cubes[0])
+
+    def _process_cube_interactions_pickup_drop(self):
+        """pickup cube if EF close, drop cube if close to target"""
         if self.held_cube is not None:
             self.just_picked_up_cube = False
 
@@ -418,18 +440,19 @@ class RoboWorldEnv(gym.Env):
         self._process_cube_interactions()
         # TODO: the arm is moving too much when it releases (particularly when human helps)
 
-        if unstacked_cube is not None:
-            self.cube_id = unstacked_cube.Id
-            self.print_visual(f"self.held_cube: {self.held_cube}")
-            if self.held_cube is not None:
-                self.target_pos = np.array(self.stack_pos)
-                self.target_pos[2] += CUBE_DIM * self.cubes_stacked
-            else:
-                # TODO: this puts the target back to the previously held cube...
-                self.target_pos = np.array(unstacked_cube.pos)
-                self.target_pos[2] += CUBE_DIM / 2
-        else:
-            self.target_pos = self.home_pos
+        #if unstacked_cube is not None:
+        #    self.cube_id = unstacked_cube.Id
+        #    self.print_visual(f"self.held_cube: {self.held_cube}")
+        #    if self.held_cube is not None:
+        #        self.target_pos = np.array(self.stack_pos)
+        #        self.target_pos[2] += CUBE_DIM * self.cubes_stacked
+        #    else:
+        #        self.target_pos = np.array(unstacked_cube.pos)
+        #        self.target_pos[2] += CUBE_DIM / 2
+        #else:
+        #    self.target_pos = self.home_pos
+        self.target_pos = np.array(self.cubes[0].pos)
+        self.target_pos[2] += CUBE_DIM / 2
 
         # debug point at stacking target location
         #debug_point = pybullet.addUserDebugPoints(

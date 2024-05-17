@@ -5,7 +5,7 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
-GROUP_PREFIX = "A6"
+GROUP_PREFIX = "A7"
 
 
 class Run:
