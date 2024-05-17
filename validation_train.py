@@ -172,7 +172,7 @@ class Manager:
         # max episode steps
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
         if not self.vary_max_steps:
-            self.max_ep_steps_list = [240*1]
+            self.max_ep_steps_list = [240*4]
 
         # learning rates
         self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
@@ -277,12 +277,14 @@ if __name__ == '__main__':
     m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
     m.run()
     #train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=5e-6)
-    for i in range(40):
+    for i in range(10):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-3)
+    for i in range(30):
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-3)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=3e-4)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-4)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-4)
     for i in range(40):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=5e-5)
     for i in range(40):

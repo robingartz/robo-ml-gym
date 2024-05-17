@@ -155,7 +155,7 @@ class RoboWorldEnv(gym.Env):
         elapsed = int(time.time() - self.start_time)
         self.score = max(0, self.score)
         self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps}, sim: {self.resets}, "
-                           f"steps: {self.ep_step}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
+                           f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
                            f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
                            % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
 
@@ -249,14 +249,15 @@ class RoboWorldEnv(gym.Env):
         # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 3
         PENALTY_FOR_CUBE_GROUND_COL = 1
+        PENALTY_FOR_BELOW_TARGET_Z = 2
         REWARD_FOR_HELD_CUBE = 1
-        REWARD_FOR_EF_VERTICAL = 1
+        REWARD_FOR_EF_VERTICAL = 0
         REWARD_PER_STACKED_CUBE = 0
 
-        self.normalise_by_init_dist = True
+        self.normalise_by_init_dist = False
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        reward = 1 / max(self.ef_cube_dist, 0.05 / 2) / 40
+        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 40
         #reward += (self.ef_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
@@ -264,21 +265,24 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_EF_GROUND_COL
 
         if self.held_cube is not None:
-            reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
+            #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
             reward += REWARD_FOR_HELD_CUBE
             if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
                 reward -= PENALTY_FOR_CUBE_GROUND_COL
                 #print("cube ground collision")
 
+        if self.ef_pos[2] < self.target_pos[2]:
+            reward -= PENALTY_FOR_BELOW_TARGET_Z
+
         if self._is_ef_angle_vertical():
             reward += REWARD_FOR_EF_VERTICAL
 
-        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
-        if self.cubes_stacked == self.cube_count:
-            ep_steps_remaining = self.ep_step_limit - self.ep_step
-            max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
-            reward = max_reward_per_step * ep_steps_remaining
+        #if self.cubes_stacked == self.cube_count:
+        #    ep_steps_remaining = self.ep_step_limit - self.ep_step
+        #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
+        #    reward = max_reward_per_step * ep_steps_remaining
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50
