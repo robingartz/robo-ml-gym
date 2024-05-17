@@ -639,6 +639,7 @@ class RoboWorldEnv(gym.Env):
 
         # set the initial joint starting positions
         pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.9, targetVelocity=0)
+        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=+0.3, targetVelocity=0)
 
     def close(self):
         if self.physics_client is not None:
