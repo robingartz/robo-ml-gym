@@ -267,9 +267,9 @@ class RoboWorldEnv(gym.Env):
         if self.held_cube is not None:
             #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
             reward += REWARD_FOR_HELD_CUBE
-            if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
-                reward -= PENALTY_FOR_CUBE_GROUND_COL
-                #print("cube ground collision")
+            #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
+            #    reward -= PENALTY_FOR_CUBE_GROUND_COL
+            #    #print("cube ground collision")
 
         if self.ef_pos[2] < self.target_pos[2]:
             reward -= PENALTY_FOR_BELOW_TARGET_Z
