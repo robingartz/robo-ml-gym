@@ -18,7 +18,7 @@ class Run:
         # load model
         model = None
         if last:
-            model = utils.get_previous_model(env)
+            model, _ = utils.get_previous_model(env)
             model.ep_step_limit = ep_step_limit
         else:
             pass

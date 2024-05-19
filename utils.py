@@ -4,17 +4,21 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
+MODELS_DIR = "models/"
+LAST_MODEL_FILE = "models/.last_model_name.txt"
+SCORES_FILE = "scores.txt"
+
 
 def get_model_name(model, total_time_steps, file_label):
     algo_name = str(model.__class__).split('.')[-1].strip("'>")
     time_s = datetime.now().strftime("%y%m%d_%H%M%S")
     name = f"{algo_name}-v{int(total_time_steps/1000)}k-{file_label}-{time_s}"
-    path = os.path.join("models/", name)
+    path = os.path.join(MODELS_DIR, name)
     return name, path
 
 
 def save_to_last_models(path):
-    with open("models/.last_model_name.txt", 'a') as f:
+    with open(LAST_MODEL_FILE, 'a') as f:
         f.write('\n'+path)
 
 
@@ -23,10 +27,10 @@ def save_model(env, model, model_filename):
     time.sleep(0.1)
     save_to_last_models(model_filename)
     # ensure info logs (verbose) have the same name as the model
-    env.unwrapped.set_fname(model_filename.strip("models/"))
+    env.unwrapped.set_fname(model_filename.strip(MODELS_DIR))
 
 
-def save_score(env, model, path, scores_path="scores.txt"):
+def save_score(env, model, path, scores_path=SCORES_FILE):
     with open(scores_path, 'a') as f:
         successes = env.unwrapped.success_tally
         fails = env.unwrapped.fail_tally
@@ -37,13 +41,15 @@ def save_score(env, model, path, scores_path="scores.txt"):
 
 def get_previous_model_names():
     last_model_names = []
-    with open("models/.last_model_name.txt", 'r') as f:
+    with open(LAST_MODEL_FILE, 'r') as f:
         last_model_names = f.readlines()
     last_model_names.reverse()
     return last_model_names
 
 
-def get_previous_model(env, custom_objects):
+def get_previous_model(env, custom_objects=None):
+    if custom_objects is None:
+        custom_objects = {}
     for last_model_name in get_previous_model_names():
         print("Loading model:", last_model_name)
         last_model_name = last_model_name.strip('\n')
