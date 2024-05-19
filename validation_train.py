@@ -36,12 +36,18 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
 
 
 if __name__ == '__main__':
-    # probably worth having a few (8) points for the cube to spawn at and run those in batches?
-    train_new_ppo(total_steps_limit=100_000)
-    for i in range(20):
+    # start shorter ep limit
+    train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*4)
+    for i in range(19):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=3e-4)
-    for i in range(40):
+    for i in range(20):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
+
+    # constant longer ep limit
+    train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 8)
+    for i in range(29):
+        train_last_model(total_time_steps=100_000, max_episode_steps=240 * 8, learning_rate=3e-4)
+
     #for i in range(20):
     #    train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-4)
     #for i in range(20):
