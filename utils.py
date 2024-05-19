@@ -69,3 +69,13 @@ def get_previous_model(env, custom_objects=None):
             pass
 
     return None, 0
+
+
+def train_and_save_model(env, model, total_time_steps, path):
+    try:
+        model.learn(total_timesteps=total_time_steps)
+        save_score(env, model, path)
+    except KeyboardInterrupt as err:
+        print(err)
+
+    save_model(env, model, path)

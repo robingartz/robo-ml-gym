@@ -5,7 +5,7 @@ import utils
 GROUP_PREFIX = "A10"
 
 
-def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_cube_spawn=False, learning_rate=5e-4):
+def train_last_model(total_time_steps=100_000, max_episode_steps=240*4, constant_cube_spawn=False, learning_rate=5e-4):
     custom_objects = {'learning_rate': learning_rate}
     env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0",
                    max_episode_steps=max_episode_steps,
@@ -15,19 +15,11 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
                    constant_cube_spawn=constant_cube_spawn)
 
     model, prev_steps = utils.get_previous_model(env, custom_objects)
-    #model.learning_rate = 0.0
 
     # TODO: total_time_steps may be incorrect if training interrupted
-    name, path = utils.get_model_name(model, prev_steps + total_time_steps, )
+    name, path = utils.get_model_name(model, prev_steps + total_time_steps, GROUP_PREFIX)
     env.unwrapped.set_fname(name)  # ensure info logs have the same name as the model
-
-    try:
-        model.learn(total_timesteps=total_time_steps)
-        utils.save_score(env, model, path)
-    except KeyboardInterrupt as err:
-        print(err)
-
-    utils.save_model(env, model, path)
+    utils.train_and_save_model(env, model, total_time_steps, path)
 
     if env is not None:
         env.close()
@@ -36,25 +28,10 @@ def train_last_model(total_time_steps=30_000, max_episode_steps=240*4, constant_
 def run(env, model, total_time_steps, save_interval=0):
     #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
 
-    name, path = utils.get_model_name(model=model, total_time_steps=total_time_steps, file_name_append=GROUP_PREFIX)
+    name, path = utils.get_model_name(model=model, total_time_steps=total_time_steps, file_label=GROUP_PREFIX)
     utils.save_to_last_models(path)
     env.unwrapped.set_fname(name)  # ensure info logs have the same name as the model
-
-    # train model
-    try:
-        if save_interval == 0:
-            model.learn(total_timesteps=total_time_steps)
-        else:
-            time_steps_completed = 0
-            while time_steps_completed < total_time_steps:
-                model.learn(total_timesteps=save_interval)
-                model.save(path + "-s" + str(int(time_steps_completed/1000)) + "k")
-                time_steps_completed += save_interval
-    except KeyboardInterrupt as exc:
-        raise KeyboardInterrupt from exc
-
-    # save model
-    model.save(path)
+    utils.train_and_save_model(env, model, total_time_steps, path)
 
     if env is not None:
         env.close()
@@ -69,7 +46,7 @@ def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6, learning_rate=
     run(total_time_steps=total_steps_limit, env=env, model=model)
 
 
-def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*6, learning_rate=3e-4, batch_size=64):
+def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*6, learning_rate=3e-4, batch_size=60):
     env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
     env = gym.make(env_name, max_episode_steps=ep_step_limit, ep_step_limit=ep_step_limit,
                    verbose=False, total_steps_limit=total_steps_limit)
@@ -80,9 +57,9 @@ def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*6, learning_rate=3
 
 if __name__ == '__main__':
     # probably worth having a few (8) points for the cube to spawn at and run those in batches?
-    train_new_ppo(total_steps_limit=100_000)
+    train_new_ppo(total_steps_limit=10_000)
     for i in range(20):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
+        train_last_model(total_time_steps=10_000, max_episode_steps=240*8, learning_rate=3e-4)
     for i in range(20):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
     for i in range(20):
