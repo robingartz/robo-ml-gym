@@ -78,7 +78,6 @@ class RoboWorldEnv(gym.Env):
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
         if max_episode_steps == None:
             max_episode_steps = ep_step_limit
-            print("How TF is max_episode_steps None, but now set to:", max_episode_steps)
         self.ep_step_limit = max_episode_steps  # an episode will reset at this point; e.g. 240
         self.max_episode_steps = max_episode_steps
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
@@ -154,7 +153,7 @@ class RoboWorldEnv(gym.Env):
     def _print_info(self):
         elapsed = int(time.time() - self.start_time)
         self.score = max(0, self.score)
-        self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps}, sim: {self.resets}, "
+        self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
                            f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
                            f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
                            % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))

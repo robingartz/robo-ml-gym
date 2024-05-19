@@ -5,7 +5,7 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 
-GROUP_PREFIX = "A8"
+GROUP_PREFIX = "A9"
 
 
 class Run:
@@ -173,6 +173,7 @@ class Manager:
         self.max_ep_steps_list = [240 * 0.5, 240 * 1.0, 240 * 2.5, 240 * 3.5]
         if not self.vary_max_steps:
             self.max_ep_steps_list = [240*4]
+        self.max_ep_steps_list = [240 * 6]
 
         # learning rates
         self.lrs_dict = {"PPO": [0.0005, 0.0010],  # PPO  0.00009, 0.0001, 0.0003,
@@ -254,6 +255,16 @@ def newSAC():
         train_last_model(total_time_steps=20_000, max_episode_steps=240*8, learning_rate=1e-5)
 
 
+def train_new_ppo(total_steps_limit=100_000, max_ep_steps=240*6, learning_rate=3e-4, batch_size=64, n_epochs=10):
+    env_name = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
+    env = gym.make(env_name, max_episode_steps=max_ep_steps, ep_step_limit=max_ep_steps,
+                   verbose=False, total_steps_limit=total_steps_limit)
+    model = PPO("MultiInputPolicy", env, learning_rate=learning_rate, verbose=1, device="auto", n_steps=max_ep_steps,
+                batch_size=batch_size, n_epochs=n_epochs)
+    env.unwrapped.set_fname(get_model_name(model, total_steps_limit).strip("models/"))
+    Run(total_time_steps=total_steps_limit, env=env, model=model)
+
+
 if __name__ == '__main__':
     # probably worth having a few (8) points for the cube to spawn at and run those in batches?
 
@@ -273,21 +284,22 @@ if __name__ == '__main__':
     #for i in range(3):
     #    train_last_model(total_time_steps=20_000, max_episode_steps=240*4)
 
-    m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
-    m.run()
+    #m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
+    #m.run()
+    train_new_ppo(total_steps_limit=100_000)
     #train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=5e-6)
     for i in range(10):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=1e-3)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-3)
     for i in range(30):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-3)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-4)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=5e-5)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
     for i in range(40):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=1e-5)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-5)
     for i in range(40):
         train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-6)
     for i in range(100):
