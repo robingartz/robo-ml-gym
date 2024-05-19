@@ -76,10 +76,8 @@ class RoboWorldEnv(gym.Env):
         # step/reset counters
         self.resets = 0  # the number of resets; e.g. [0 to 100]
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
-        if max_episode_steps == None:
-            max_episode_steps = ep_step_limit
-        self.ep_step_limit = max_episode_steps  # an episode will reset at this point; e.g. 240
-        self.max_episode_steps = max_episode_steps
+        self.ep_step_limit = ep_step_limit  # an episode will reset at this point; e.g. 240
+        self.max_episode_steps = ep_step_limit
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
         # total_steps_limit: training is completed once total_steps >= total_steps_limit; e.g. 200_000
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
@@ -246,7 +244,7 @@ class RoboWorldEnv(gym.Env):
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides!!!
-        PENALTY_FOR_EF_GROUND_COL = 3
+        PENALTY_FOR_EF_GROUND_COL = 1
         PENALTY_FOR_CUBE_GROUND_COL = 1
         PENALTY_FOR_BELOW_TARGET_Z = 2
         REWARD_FOR_HELD_CUBE = 1
@@ -256,7 +254,7 @@ class RoboWorldEnv(gym.Env):
         self.normalise_by_init_dist = False
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 40
+        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 10
         #reward += (self.ef_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
