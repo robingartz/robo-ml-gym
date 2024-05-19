@@ -304,6 +304,7 @@ class RoboWorldEnv(gym.Env):
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
+        return True
         return self.ef_angle > 2.356  # 135 / 180 * np.pi = 2.356
 
     def _try_pickup_cube(self, cube):

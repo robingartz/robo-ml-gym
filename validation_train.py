@@ -273,7 +273,6 @@ if __name__ == '__main__':
     #for i in range(3):
     #    train_last_model(total_time_steps=20_000, max_episode_steps=240*4)
 
-    #time.sleep(60*15)
     m = Manager(model_types_to_run=["PPO"], total_steps_limit=100_000, constant_cube_spawn=False, vary_learning_rates=False)
     m.run()
     #train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=5e-6)
