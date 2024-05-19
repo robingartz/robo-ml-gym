@@ -33,8 +33,22 @@ FLT_EPSILON = 0.0000001
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None, verbose=True, save_verbose=True, max_episode_steps=None, ep_step_limit=None,
-                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False):
+    def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
+                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="pickup"):
+        """
+        PyBullet environment with the ABB IRB120 robot. The robot's end goal is
+        to stack a number of cubes at the target_pos.
+
+        :param render_mode:
+        :param verbose:
+        :param save_verbose:
+        :param ep_step_limit:
+        :param total_steps_limit:
+        :param fname_app:
+        :param constant_cube_spawn:
+        :param goal: str "pickup" | "stack"
+        """
+
         # relative min/max
         self.REL_REGION_MIN = np.array([-REL_MAX_DIS, -REL_MAX_DIS, -REL_MAX_DIS])
         self.REL_REGION_MAX = np.array([REL_MAX_DIS, REL_MAX_DIS, REL_MAX_DIS])
@@ -77,12 +91,12 @@ class RoboWorldEnv(gym.Env):
         self.resets = 0  # the number of resets; e.g. [0 to 100]
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
         self.ep_step_limit = ep_step_limit  # an episode will reset at this point; e.g. 240
-        self.max_episode_steps = ep_step_limit
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
         # total_steps_limit: training is completed once total_steps >= total_steps_limit; e.g. 200_000
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
 
         # scoring
+        self.goal = goal
         self.score = 0
 
         # robot vars
@@ -509,10 +523,12 @@ class RoboWorldEnv(gym.Env):
             self.carry_has_no_cube += 1
 
         # tally full success
-        if self.cubes_stacked == self.cube_count:
-            self.success_tally += 1
-        else:
-            self.fail_tally += 1
+        if self.goal == "pickup":
+            if self.held_cube is not None: self.success_tally += 1
+            else: self.fail_tally += 1
+        elif self.goal == "stack":
+            if self.cubes_stacked == self.cube_count: self.success_tally += 1
+            else: self.fail_tally += 1
 
         self.held_cube = None
         self.picked_up_cube_count = 0
