@@ -22,7 +22,7 @@ def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
 
 
-def train_last_model(total_time_steps=100_000, max_episode_steps=240*4, constant_cube_spawn=False, learning_rate=3e-4):
+def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant_cube_spawn=False, learning_rate=3e-4):
     custom_objects = {'learning_rate': learning_rate}
     env = gym.make(ENV_ROBOWORLD,
                    max_episode_steps=max_episode_steps,
@@ -32,7 +32,7 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*4, constant
                    constant_cube_spawn=constant_cube_spawn)
 
     model, prev_steps = utils.get_previous_model(env, custom_objects)
-    utils.run(env, model, GROUP_PREFIX, total_time_steps, prev_steps)
+    utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_time_steps, prev_steps=prev_steps)
 
 
 if __name__ == '__main__':
