@@ -71,7 +71,11 @@ def get_previous_model(env, custom_objects=None):
     return None, 0
 
 
-def train_and_save_model(env, model, total_time_steps, path):
+def run(env, model, label, total_time_steps, prev_steps=0):
+    #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
+    name, path = get_model_name(model, prev_steps+total_time_steps, label)
+    env.unwrapped.set_fname(name)  # ensure info logs have the same name as the model
+
     try:
         model.learn(total_timesteps=total_time_steps)
         save_score(env, model, path)
@@ -79,3 +83,6 @@ def train_and_save_model(env, model, total_time_steps, path):
         print(err)
 
     save_model(env, model, path)
+
+    if env is not None:
+        env.close()
