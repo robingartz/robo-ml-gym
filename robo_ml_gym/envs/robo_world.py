@@ -453,7 +453,10 @@ class RoboWorldEnv(gym.Env):
         self.ef_pos = np.array(ef_pos, dtype=np.float32)
         self._update_dist()
 
-        self._process_cube_interactions()
+        if self.goal == "pickup":
+            self._process_cube_interactions()
+        elif self.goal == "stack":
+            self._process_cube_interactions_pickup_drop()
         # TODO: the arm is moving too much when it releases (particularly when human helps)
 
         #if unstacked_cube is not None:
