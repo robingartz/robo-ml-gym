@@ -375,6 +375,15 @@ class RoboWorldEnv(gym.Env):
             # pickup cube and move towards the stack_pos
             self._try_pickup_cube(self.cubes[0])
 
+    def _process_phantom_interactions(self):
+        """pickup cube if EF close"""
+        if self.held_cube is not None:
+            self.just_picked_up_cube = False
+
+        if self.held_cube is None:
+            # pickup cube and move towards the stack_pos
+            self._try_pickup_cube(self.cubes[0])
+
     def _process_cube_interactions_pickup_drop(self):
         """pickup cube if EF close, drop cube if close to target"""
         if self.held_cube is not None:
@@ -455,28 +464,32 @@ class RoboWorldEnv(gym.Env):
 
         if self.goal == "pickup":
             self._process_cube_interactions()
+            self.target_pos = np.array(self.cubes[0].pos)
+            self.target_pos[2] += CUBE_DIM / 2
+
+        elif self.goal == "phantom":
+            pass
+
         elif self.goal == "stack":
             self._process_cube_interactions_pickup_drop()
-        # TODO: the arm is moving too much when it releases (particularly when human helps)
+            # TODO: the arm is moving too much when it releases (particularly when human helps)
 
-        #if unstacked_cube is not None:
-        #    self.cube_id = unstacked_cube.Id
-        #    self.print_visual(f"self.held_cube: {self.held_cube}")
-        #    if self.held_cube is not None:
-        #        self.target_pos = np.array(self.stack_pos)
-        #        self.target_pos[2] += CUBE_DIM * self.cubes_stacked
-        #    else:
-        #        self.target_pos = np.array(unstacked_cube.pos)
-        #        self.target_pos[2] += CUBE_DIM / 2
-        #else:
-        #    self.target_pos = self.home_pos
-        self.target_pos = np.array(self.cubes[0].pos)
-        self.target_pos[2] += CUBE_DIM / 2
+            if unstacked_cube is not None:
+                self.cube_id = unstacked_cube.Id
+                self.print_visual(f"self.held_cube: {self.held_cube}")
+                if self.held_cube is not None:
+                    self.target_pos = np.array(self.stack_pos)
+                    self.target_pos[2] += CUBE_DIM * self.cubes_stacked
+                else:
+                    self.target_pos = np.array(unstacked_cube.pos)
+                    self.target_pos[2] += CUBE_DIM / 2
+            else:
+                self.target_pos = self.home_pos
 
-        # debug point at stacking target location
-        #debug_point = pybullet.addUserDebugPoints(
-        #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
-        #self.debug_points.append(debug_point)
+            # debug point at stacking target location
+            #debug_point = pybullet.addUserDebugPoints(
+            #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
+            #self.debug_points.append(debug_point)
 
         if self.render_mode == "human":
             self._process_keyboard_events()
@@ -529,6 +542,8 @@ class RoboWorldEnv(gym.Env):
         if self.goal == "pickup":
             if self.held_cube is not None: self.success_tally += 1
             else: self.fail_tally += 1
+        elif self.goal == "phantom":
+            pass
         elif self.goal == "stack":
             if self.cubes_stacked == self.cube_count: self.success_tally += 1
             else: self.fail_tally += 1
@@ -585,12 +600,13 @@ class RoboWorldEnv(gym.Env):
 
     def _reset_cubes(self):
         """resets all cubes and debug related widgets"""
-        #if self.use_phantom_cube:
-        #    self.target_pos = self.robot_workspace.get_rnd_point()
-        #    if self.render_mode == "human":
-        #        debug_point = pybullet.addUserDebugPoints(
-        #            pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
-        #        self.debug_points.append(debug_point)
+        if self.use_phantom_cube:
+            #self.target_pos = self.robot_workspace.get_rnd_point()
+            self.target_pos = self.robot_workspace.get_rnd_point_bounded_z(CUBE_DIM / 2, CUBE_DIM * 6)
+            if self.render_mode == "human":
+                debug_point = pybullet.addUserDebugPoints(
+                    pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
+                self.debug_points.append(debug_point)
 
         # reset cube vars
         self.cubes_stacked = 0

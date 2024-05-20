@@ -42,7 +42,7 @@ class Region:
         return arr
 
     def get_rnd_point(self) -> np.array:
-        """ returns a random point within the region """
+        """ returns a random point within the 3D region """
         point = None
         dist = 999
         #while dist > 0.66:
@@ -52,3 +52,10 @@ class Region:
         point = np.array([x, y, z])
         dist = abs(np.linalg.norm(point - self.robot_pos))
         return point
+
+    def get_rnd_point_bounded_z(self, z_min=0, z_max=1):
+        """ returns a random point within the 3D region between the z bounds"""
+        p = self.get_rnd_point()
+        while p[2] < z_min or p[2] > z_max:
+            p = self.get_rnd_point()
+        return p
