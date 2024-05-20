@@ -96,6 +96,7 @@ class RoboWorldEnv(gym.Env):
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
 
         # scoring
+        goal = "stack"
         self.goal = goal
         self.score = 0
 
@@ -242,8 +243,8 @@ class RoboWorldEnv(gym.Env):
     def _get_simple_reward(self):
         REWARD_PER_STACKED_CUBE = 5
         reward = 1 / max(self.ef_cube_dist, 0.05 / 2) / 40
-        reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
-        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        #reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
+        #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
         return reward
 
     def _get_simple_reward_normalised(self):
@@ -260,8 +261,8 @@ class RoboWorldEnv(gym.Env):
         # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 1
         PENALTY_FOR_CUBE_GROUND_COL = 1
-        PENALTY_FOR_BELOW_TARGET_Z = 2
-        REWARD_FOR_HELD_CUBE = 1
+        PENALTY_FOR_BELOW_TARGET_Z = 1
+        REWARD_FOR_HELD_CUBE = 2
         REWARD_FOR_EF_VERTICAL = 0
         REWARD_PER_STACKED_CUBE = 0
 
@@ -315,7 +316,6 @@ class RoboWorldEnv(gym.Env):
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
-        return True
         return self.ef_angle > 2.356  # 135 / 180 * np.pi = 2.356
 
     def _try_pickup_cube(self, cube):
@@ -624,13 +624,13 @@ class RoboWorldEnv(gym.Env):
 
     def _setup_visual_objects(self):
         if self.render_mode == "human":
-            # baseplate
-            plate_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.1, 0.45])
-            pybullet.createMultiBody(0, plate_id, basePosition=[-0.01, 0.0, 0.45])
+            ## baseplate
+            #plate_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.01, 0.1, 0.45])
+            #pybullet.createMultiBody(0, plate_id, basePosition=[-0.01, 0.0, 0.45])
 
-            # ABB circuit box
-            abb_box_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.1, 0.2, 0.1])
-            pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
+            ## ABB circuit box
+            #abb_box_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.1, 0.2, 0.1])
+            #pybullet.createMultiBody(0, abb_box_id, basePosition=[0.1, 0.1, 0.1])
 
             # 8 corner points of region
             points = self.robot_workspace.get_corners()
@@ -663,6 +663,8 @@ class RoboWorldEnv(gym.Env):
         # ToDo: add inertia to urdf file
         start_pos = [0, 0, 0.18/2 + 0.65 - 0.3]
         start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
+        start_pos = [0.3, 0, 0]
+        start_orientation = pybullet.getQuaternionFromEuler([0, 0, 0])
         urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
         if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
             urdf_path = "robo_ml_gym/" + urdf_path
@@ -671,8 +673,8 @@ class RoboWorldEnv(gym.Env):
         self.joints_count = pybullet.getNumJoints(self.robot_id)
 
         # set the initial joint starting positions
-        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=-0.9, targetVelocity=0)
-        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=+0.3, targetVelocity=0)
+        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
+        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
 
     def close(self):
         if self.physics_client is not None:
