@@ -96,7 +96,7 @@ class RoboWorldEnv(gym.Env):
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
 
         # scoring
-        goal = "stack"
+        goal = "touch"
         self.goal = goal
         self.score = 0
 
@@ -322,7 +322,7 @@ class RoboWorldEnv(gym.Env):
         # TODO: allow picking up from an angle
         if self.ef_cube_dist < self.pickup_tolerance:
             if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
-                if self._is_ef_angle_vertical():
+                if (self.goal == "touch") or (self.goal == "pickup" and self._is_ef_angle_vertical()):
                     self.held_cube = cube
                     self.just_picked_up_cube = True
                     self.picked_up_cube_count += 1
@@ -467,8 +467,10 @@ class RoboWorldEnv(gym.Env):
             self.target_pos = np.array(self.cubes[0].pos)
             self.target_pos[2] += CUBE_DIM / 2
 
-        elif self.goal == "phantom":
-            pass
+        elif self.goal == "touch":
+            self._process_cube_interactions()
+            self.target_pos = np.array(self.cubes[0].pos)
+            self.target_pos[2] += CUBE_DIM / 2
 
         elif self.goal == "stack":
             self._process_cube_interactions_pickup_drop()
@@ -542,7 +544,7 @@ class RoboWorldEnv(gym.Env):
         if self.goal == "pickup":
             if self.held_cube is not None: self.success_tally += 1
             else: self.fail_tally += 1
-        elif self.goal == "phantom":
+        elif self.goal == "touch":
             pass
         elif self.goal == "stack":
             if self.cubes_stacked == self.cube_count: self.success_tally += 1
