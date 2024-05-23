@@ -2,7 +2,7 @@ import gymnasium as gym
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import utils
 
-GROUP_PREFIX = "A13"
+GROUP_PREFIX = "A14"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 
 
@@ -56,15 +56,15 @@ if __name__ == '__main__':
             train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-6)
     """
 
-    ## constant longer ep limit
-    for r in range(1):
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
+    # constant longer ep limit
+    for r in range(5):
+        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*12)
         for i in range(19):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
+            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-4)
         for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
+            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-4)
+        for i in range(50):
+            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=5e-5)
         #for i in range(10):
         #    train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-5)
         #for i in range(30):

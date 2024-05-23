@@ -105,7 +105,7 @@ class RoboWorldEnv(gym.Env):
         self.joints_count = None
         self.ef_pos = None  # end effector position (x, y, z)
         # 0 deg = vertical from below, 90 deg = horizontal EF, 180 deg = vertical from above
-        self.ef_angle = np.pi / 2
+        self.ef_angle = 90
         self.home_pos = np.array([0.9, 0.0, 0.30])  # the home position for the robot once stacking is completed
         self.target_pos = None
         self.dist = 1.0
@@ -286,8 +286,11 @@ class RoboWorldEnv(gym.Env):
         if self.ef_pos[2] < self.target_pos[2]:
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
-        if self._is_ef_angle_vertical():
-            reward += REWARD_FOR_EF_VERTICAL
+        #if self._is_ef_angle_vertical():
+        #    reward += REWARD_FOR_EF_VERTICAL
+
+        # reward more vertical EF
+        reward += (self.ef_angle - 90) / 90 * 4
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
@@ -316,7 +319,7 @@ class RoboWorldEnv(gym.Env):
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
-        return self.ef_angle > 2.356  # 135 / 180 * np.pi = 2.356
+        return self.ef_angle > 135  # 135 / 180 * np.pi = 2.356
 
     def _try_pickup_cube(self, cube):
         # TODO: allow picking up from an angle
@@ -554,7 +557,7 @@ class RoboWorldEnv(gym.Env):
         self.held_cube = None
         self.picked_up_cube_count = 0
         self.prev_dist = self.dist = 1.0
-        self.ef_angle = np.pi / 2
+        self.ef_angle = 90
         if self.cube_constraint_id is not None:
             pybullet.removeConstraint(self.cube_constraint_id)
             self.cube_constraint_id = None
