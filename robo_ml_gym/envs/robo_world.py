@@ -545,7 +545,8 @@ class RoboWorldEnv(gym.Env):
             if self.held_cube is not None: self.success_tally += 1
             else: self.fail_tally += 1
         elif self.goal == "touch":
-            pass
+            if self.held_cube is not None: self.success_tally += 1
+            else: self.fail_tally += 1
         elif self.goal == "stack":
             if self.cubes_stacked == self.cube_count: self.success_tally += 1
             else: self.fail_tally += 1
