@@ -96,8 +96,9 @@ class RoboWorldEnv(gym.Env):
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
 
         # scoring
-        goal = "touch"
+        goal = "phantom_touch"
         self.goal = goal
+        self.use_phantom_cube = True if self.goal == "phantom_touch" else False
         self.score = 0
 
         # robot vars
@@ -116,7 +117,6 @@ class RoboWorldEnv(gym.Env):
         self.init_cube_stack_dist = 1.0
 
         # cube vars
-        self.use_phantom_cube = False
         self.cube_count = 1
         self.cubes = []
         self.cube_ids = []
@@ -184,14 +184,13 @@ class RoboWorldEnv(gym.Env):
     def vector_angle(self, a, b):
         return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
 
-    def _update_dist(self):
+    def _update_dist(self, cube):
         # TODO: need self.dist for reward func
         # distance between EF to cube and stack pos
-        cube = self.get_first_unstacked_cube()
         self.ef_cube_dist = 1.0
         self.cube_stack_dist = 1.0
 
-        if self.cubes_stacked == self.cube_count:
+        if self.cubes_stacked == self.cube_count and self.cube_count > 0:
             # all cubes are stacked
             cube = self.cubes[0]
 
@@ -450,12 +449,7 @@ class RoboWorldEnv(gym.Env):
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
-        # move joints
-        for joint_index in range(0, 0+self.joints_count-1):
-            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-                                           controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
-            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-            #                               controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
+        self._process_action(action)
 
         # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
         #for i in range(self.total_steps_between_interaction):
@@ -464,14 +458,66 @@ class RoboWorldEnv(gym.Env):
         for cube in self.cubes:
             cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
         self._check_cubes_stacked()
-
         unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
 
         self.prev_end_effector_pos = self.ef_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
         self.ef_pos = np.array(ef_pos, dtype=np.float32)
-        self._update_dist()
+        self._update_dist(unstacked_cube)
+        self._update_target_pos(unstacked_cube)
+        print(self.target_pos, self.dist)
 
+        if self.render_mode == "human":
+            self._process_keyboard_events()
+
+            # debug line from ef_pos to target_pos
+            if self.orn_line is not None:
+                pybullet.removeUserDebugItem(self.orn_line)
+            self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
+
+            # debug point at stacking target location
+            #debug_point = pybullet.addUserDebugPoints(
+            #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
+            #self.debug_points.append(debug_point)
+
+        terminated = False #self.held_cube is not None #False  #self.dist < 0.056
+        reward = self._get_reward()
+        observation = self._get_obs()
+        info = self._get_info()
+        reward = self._process_terminated_state(terminated, reward)
+
+        if self.render_mode == "human":
+            self._render_frame()
+
+        self.total_steps += 1
+        self.ep_step += 1
+
+        if self.ep_step == self.ep_step_limit-1 or terminated:
+            self._print_info()
+
+        return observation, reward, terminated, False, info
+
+    def _process_action(self, action):
+        # move joints
+        for joint_index in range(0, 0+self.joints_count-1):
+            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+                                           controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
+            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
+            #                               controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
+
+    def _process_terminated_state(self, terminated, reward):
+        if terminated:
+            if self.ep_step_limit is not None:
+                reward += (1 / (0.05 / 2)) * 1.2 * 240 * (self.ep_step_limit - self.total_steps)
+            else:
+                reward = 69000
+            self.score += reward
+        self.score = min(self.score, 69000)
+        if terminated:
+            self.score += 1000
+        return reward
+
+    def _update_target_pos(self, unstacked_cube):
         if self.goal == "pickup":
             self._process_cube_interactions()
             self.target_pos = np.array(self.cubes[0].pos)
@@ -497,43 +543,6 @@ class RoboWorldEnv(gym.Env):
                     self.target_pos[2] += CUBE_DIM / 2
             else:
                 self.target_pos = self.home_pos
-
-            # debug point at stacking target location
-            #debug_point = pybullet.addUserDebugPoints(
-            #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
-            #self.debug_points.append(debug_point)
-
-        if self.render_mode == "human":
-            self._process_keyboard_events()
-            if self.orn_line is not None:
-                pybullet.removeUserDebugItem(self.orn_line)
-            self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
-
-        terminated = False #self.held_cube is not None #False  #self.dist < 0.056
-        reward = self._get_reward()
-        observation = self._get_obs()
-        info = self._get_info()
-
-        if terminated:
-            if self.ep_step_limit is not None:
-                reward += (1 / (0.05 / 2)) * 1.2 * 240 * (self.ep_step_limit - self.total_steps)
-            else:
-                reward = 69000
-            self.score += reward
-        self.score = min(self.score, 69000)
-        if terminated:
-            self.score += 1000
-
-        if self.render_mode == "human":
-            self._render_frame()
-
-        self.total_steps += 1
-        self.ep_step += 1
-
-        if self.ep_step == self.ep_step_limit-1 or terminated:
-            self._print_info()
-
-        return observation, reward, terminated, False, info
 
     def reset(self, seed=None, options=None):
         """resets the robot position, cube position, score and gripper states"""
@@ -577,12 +586,8 @@ class RoboWorldEnv(gym.Env):
 
         # reset cube_pos, target_pos values
         self.ef_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
-        self.target_pos = self.cubes[0].pos
+        self._reset_target_pos()
         self._reset_cubes()
-
-        self._update_dist()
-        self.init_ef_cube_dist = self.ef_cube_dist
-        self.init_cube_stack_dist = self.cube_stack_dist
 
         observation = self._get_obs()
         info = self._get_info()
@@ -611,22 +616,24 @@ class RoboWorldEnv(gym.Env):
 
         self.init_state = pybullet.saveState()
 
-    def _reset_cubes(self):
-        """resets all cubes and debug related widgets"""
+    def _reset_target_pos(self):
+        if self.cube_count > 0:
+            self.target_pos = self.cubes[0].pos
         if self.use_phantom_cube:
-            #self.target_pos = self.robot_workspace.get_rnd_point()
             self.target_pos = self.robot_workspace.get_rnd_point_bounded_z(CUBE_DIM / 2, CUBE_DIM * 6)
             if self.render_mode == "human":
                 debug_point = pybullet.addUserDebugPoints(
                     pointPositions=[self.target_pos], pointColorsRGB=[[0, 0, 1]], pointSize=10, lifeTime=1)
                 self.debug_points.append(debug_point)
 
+    def _reset_cubes(self):
+        """resets all cubes and debug related widgets"""
         # reset cube vars
         self.cubes_stacked = 0
         self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
         self._setup_cube_positions()
 
-        self._update_dist()
+        self._update_dist(self.get_first_unstacked_cube())
         self.init_ef_cube_dist = self.ef_cube_dist
         self.init_cube_stack_dist = self.cube_stack_dist
 
