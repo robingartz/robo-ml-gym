@@ -104,8 +104,9 @@ class RoboWorldEnv(gym.Env):
         self.robot_id = None
         self.joints_count = None
         self.ef_pos = None  # end effector position (x, y, z)
-        # 0 deg = vertical from below, 90 deg = horizontal EF, 180 deg = vertical from above
+        # 0 deg = vertical pointing up, 90 deg = horizontal EF, 180 deg = vertical pointing down
         self.ef_angle = 90
+        self.ef_to_target_angle = 90
         self.home_pos = np.array([0.9, 0.0, 0.30])  # the home position for the robot once stacking is completed
         self.target_pos = None
         self.dist = 1.0
@@ -207,7 +208,11 @@ class RoboWorldEnv(gym.Env):
 
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
-        self.ef_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
+        self.ef_to_target_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
+        # angle between EF and Z-axis
+        ef_2 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 2)[0])
+        ef_1 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
+        self.ef_angle = self.vector_angle(ef_1 - ef_2, np.array([0.0, 0.0, 1.0]))
 
     def render(self):
         if self.render_mode == "rgb_array":
@@ -269,8 +274,8 @@ class RoboWorldEnv(gym.Env):
         self.normalise_by_init_dist = False
         # TODO: try normalise the reward by the starting distance
         # TODO: check that rel_pos is actually correct... when i move it around
-        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 10
-        #reward += (self.ef_angle / 180) ** 2
+        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 5
+        #reward += (self.ef_to_target_angle / 180) ** 2
 
         if self.ef_pos[2] < 0:
             #print("ef ground collision")
@@ -290,7 +295,7 @@ class RoboWorldEnv(gym.Env):
         #    reward += REWARD_FOR_EF_VERTICAL
 
         # reward more vertical EF
-        reward += (self.ef_angle - 90) / 90 * 4
+        reward += (self.ef_angle - 90) / 90 * 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
@@ -303,6 +308,7 @@ class RoboWorldEnv(gym.Env):
         #    reward += 50
         #reward = self._get_simple_reward()
 
+        #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
         return reward
@@ -319,7 +325,8 @@ class RoboWorldEnv(gym.Env):
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
-        return self.ef_angle > 135  # 135 / 180 * np.pi = 2.356
+        return self.ef_angle > 135
+        #return self.ef_to_target_angle > 135  # 135 / 180 * np.pi = 2.356
 
     def _try_pickup_cube(self, cube):
         # TODO: allow picking up from an angle
@@ -557,7 +564,7 @@ class RoboWorldEnv(gym.Env):
         self.held_cube = None
         self.picked_up_cube_count = 0
         self.prev_dist = self.dist = 1.0
-        self.ef_angle = 90
+        self.ef_to_target_angle = 90
         if self.cube_constraint_id is not None:
             pybullet.removeConstraint(self.cube_constraint_id)
             self.cube_constraint_id = None
@@ -681,6 +688,7 @@ class RoboWorldEnv(gym.Env):
         # set the initial joint starting positions
         pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
         pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
+        #pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=4, targetValue=0.6-3.14/2, targetVelocity=0)
 
     def close(self):
         if self.physics_client is not None:
