@@ -265,7 +265,7 @@ class RoboWorldEnv(gym.Env):
         # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 1
         PENALTY_FOR_CUBE_GROUND_COL = 1
-        PENALTY_FOR_BELOW_TARGET_Z = 1
+        PENALTY_FOR_BELOW_TARGET_Z = 0
         REWARD_FOR_HELD_CUBE = 2
         REWARD_FOR_EF_VERTICAL = 0
         REWARD_PER_STACKED_CUBE = 0
