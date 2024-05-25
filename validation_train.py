@@ -37,7 +37,7 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
 
 if __name__ == '__main__':
     for r in range(5):
-        #train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
+        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
         for i in range(39):
             train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
         for i in range(30):

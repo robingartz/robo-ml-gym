@@ -287,7 +287,7 @@ class RoboWorldEnv(gym.Env):
             #    reward -= PENALTY_FOR_CUBE_GROUND_COL
             #    #print("cube ground collision")
 
-        if self.ef_pos[2] < self.target_pos[2]:
+        if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         #if self._is_ef_angle_vertical():
@@ -305,7 +305,7 @@ class RoboWorldEnv(gym.Env):
 
         #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
         #    reward += 50
-        #reward = self._get_simple_reward()
+        reward = self._get_simple_reward()
 
         #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
