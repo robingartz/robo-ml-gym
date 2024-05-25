@@ -257,11 +257,8 @@ class RoboWorldEnv(gym.Env):
 
         return observations
 
-    def _get_simple_reward(self):
-        REWARD_PER_STACKED_CUBE = 5
-        reward = 1 / max(self.dist, 0.05 / 2) / 40
-        #reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
-        #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+    def _get_dist_reward(self):
+        reward = 1 / max(self.dist, 0.05 / 2) / 5
         return reward
 
     def _get_simple_reward_normalised(self):
@@ -280,17 +277,11 @@ class RoboWorldEnv(gym.Env):
         PENALTY_FOR_CUBE_GROUND_COL = 1
         PENALTY_FOR_BELOW_TARGET_Z = 0
         REWARD_FOR_HELD_CUBE = 2
-        REWARD_FOR_EF_VERTICAL = 0
         REWARD_PER_STACKED_CUBE = 0
 
-        self.normalise_by_init_dist = False
-        # TODO: try normalise the reward by the starting distance
-        # TODO: check that rel_pos is actually correct... when i move it around
-        reward = (1 / max(self.ef_cube_dist, 0.05 / 2)) / 5
-        #reward += (self.ef_to_target_angle / 180) ** 2
+        reward = self._get_dist_reward()
 
         if self.ef_pos[2] < 0:
-            #print("ef ground collision")
             reward -= PENALTY_FOR_EF_GROUND_COL
 
         if self.held_cube is not None:
@@ -298,16 +289,13 @@ class RoboWorldEnv(gym.Env):
             reward += REWARD_FOR_HELD_CUBE
             #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
             #    reward -= PENALTY_FOR_CUBE_GROUND_COL
-            #    #print("cube ground collision")
 
         if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
-        #if self._is_ef_angle_vertical():
-        #    reward += REWARD_FOR_EF_VERTICAL
-
         # reward more vertical EF
-        reward += (self.ef_angle - 90) / 90 * 2
+        #reward += min((self.ef_angle - 90) / 90, 2) * 1
+        #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
@@ -316,10 +304,7 @@ class RoboWorldEnv(gym.Env):
         #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
         #    reward = max_reward_per_step * ep_steps_remaining
 
-        #if self.just_picked_up_cube and self.picked_up_cube_count == 1:
-        #    reward += 50
-        reward = self._get_simple_reward()
-
+        #reward = self._get_dist_reward()
         #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
@@ -330,10 +315,16 @@ class RoboWorldEnv(gym.Env):
         keys = pybullet.getKeyboardEvents()
         key_next = ord('n')
         key_verbose = ord('q')
+        key_reset = ord('r')
         if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
             self.reset()
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
             self.visual_verbose = not self.visual_verbose
+        if key_reset in keys and keys[key_reset] & pybullet.KEY_WAS_TRIGGERED:
+            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
+            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
+            for i in range(3, 7):
+                pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=i, targetValue=0.0, targetVelocity=0)
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
