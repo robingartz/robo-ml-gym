@@ -2,7 +2,7 @@ import gymnasium as gym
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import utils
 
-GROUP_PREFIX = "A15"
+GROUP_PREFIX = "A16"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 
 
@@ -37,16 +37,16 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
 
 if __name__ == '__main__':
     for r in range(5):
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
-        for i in range(39):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
-        for i in range(30):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
-        for i in range(30):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
-        #for i in range(10):
-        #    train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-5)
-        #for i in range(30):
-        #    train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=5e-6)
-        #for i in range(1000):
-        #    train_last_model(total_time_steps=100_000, max_episode_steps=240*16, learning_rate=1e-6)
+        #train_new_ppo(total_steps_limit=200_000, ep_step_limit=240*1)
+        for i in range(18):
+            train_last_model(total_time_steps=200_000, max_episode_steps=240*6, learning_rate=3e-4)
+        for i in range(20):
+            train_last_model(total_time_steps=200_000, max_episode_steps=240*8, learning_rate=1e-4)
+        for i in range(20):
+            train_last_model(total_time_steps=200_000, max_episode_steps=240*8, learning_rate=5e-5)
+        #for i in range(20):
+        #    train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)
+        #for i in range(20):
+        #    train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=5e-6)
+    for i in range(200):
+        train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)

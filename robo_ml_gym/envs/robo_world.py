@@ -98,7 +98,6 @@ class RoboWorldEnv(gym.Env):
         # scoring
         goal = "phantom_touch"
         self.goal = goal
-        self.use_phantom_cube = True if self.goal == "phantom_touch" else False
         self.score = 0
 
         # robot vars
@@ -111,6 +110,7 @@ class RoboWorldEnv(gym.Env):
         self.home_pos = np.array([0.9, 0.0, 0.30])  # the home position for the robot once stacking is completed
         self.target_pos = None
         self.dist = 1.0
+        self.ef_cube_dist = 1.0
         self.cube_stack_dist = 1.0
 
         self.init_ef_cube_dist = 1.0
@@ -167,10 +167,17 @@ class RoboWorldEnv(gym.Env):
     def _print_info(self):
         elapsed = int(time.time() - self.start_time)
         self.score = max(0, self.score)
-        self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
-                           f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
-                           f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
-                           % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
+        #self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
+        #                   f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
+        #                   f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
+        #                   % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
+        if self.resets == 1:
+            self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist")
+        held_cube = 1 if self.held_cube is not None else 0
+        self.print_verbose(f"%5d, %7d, %6d, %5d,  %.3f, %6d, %6d, %3d, %6d, %.3f"
+                           % (self._get_time_remaining(), self.total_steps+1, self.resets, self.ep_step+1,
+                              self.ef_cube_dist, int(self.score), elapsed, held_cube, self.cubes_stacked,
+                              self.cube_stack_dist))
 
     def _get_time_remaining(self):
         # time remaining info
@@ -205,6 +212,11 @@ class RoboWorldEnv(gym.Env):
         if cube is not None:
             self.dist = self.cube_stack_dist
 
+        if self.goal == "phantom_touch":
+            self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
+            self.dist = self.ef_cube_dist
+            self.print_visual("ef dist: %.3f    dist: %.3f" % (self.ef_cube_dist, self.dist))
+
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
         self.ef_to_target_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
@@ -235,6 +247,7 @@ class RoboWorldEnv(gym.Env):
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
         height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
+        self.print_visual("rel_pos: %.3f %.3f %.3f" % (rel_pos[0], rel_pos[1], rel_pos[2]))
         observations = {
             "joints": joint_positions,
             "rel_pos": rel_pos,
@@ -246,7 +259,7 @@ class RoboWorldEnv(gym.Env):
 
     def _get_simple_reward(self):
         REWARD_PER_STACKED_CUBE = 5
-        reward = 1 / max(self.ef_cube_dist, 0.05 / 2) / 40
+        reward = 1 / max(self.dist, 0.05 / 2) / 40
         #reward += 1 / max(self.cube_stack_dist, 0.05 / 2) / 40
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
         return reward
@@ -625,7 +638,7 @@ class RoboWorldEnv(gym.Env):
     def _reset_target_pos(self):
         if self.cube_count > 0:
             self.target_pos = self.cubes[0].pos
-        if self.use_phantom_cube:
+        if self.goal == "phantom_touch":
             self.target_pos = self.robot_workspace.get_rnd_point_bounded_z(CUBE_DIM / 2, CUBE_DIM * 6)
             if self.render_mode == "human":
                 debug_point = pybullet.addUserDebugPoints(
