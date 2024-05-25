@@ -465,7 +465,6 @@ class RoboWorldEnv(gym.Env):
         self.ef_pos = np.array(ef_pos, dtype=np.float32)
         self._update_dist(unstacked_cube)
         self._update_target_pos(unstacked_cube)
-        print(self.target_pos, self.dist)
 
         if self.render_mode == "human":
             self._process_keyboard_events()
@@ -528,6 +527,10 @@ class RoboWorldEnv(gym.Env):
             self.target_pos = np.array(self.cubes[0].pos)
             self.target_pos[2] += CUBE_DIM / 2
 
+        elif self.goal == "phantom_touch":
+            # only updates on reset
+            pass
+
         elif self.goal == "stack":
             self._process_cube_interactions_pickup_drop()
             # TODO: the arm is moving too much when it releases (particularly when human helps)
@@ -565,6 +568,9 @@ class RoboWorldEnv(gym.Env):
             else: self.fail_tally += 1
         elif self.goal == "touch":
             if self.held_cube is not None: self.success_tally += 1
+            else: self.fail_tally += 1
+        elif self.goal == "phantom_touch":
+            if self.dist < self.pickup_tolerance: self.success_tally += 1
             else: self.fail_tally += 1
         elif self.goal == "stack":
             if self.cubes_stacked == self.cube_count: self.success_tally += 1

@@ -34,6 +34,7 @@ def save_score(env, model, path, scores_path=SCORES_FILE):
     with open(scores_path, 'a') as f:
         successes = env.unwrapped.success_tally
         fails = env.unwrapped.fail_tally
+        fails = 1 if fails == 0 else fails
         success_rate = int(successes / (successes + fails) * 100)
         avg_score = int(env.unwrapped.carry_over_score / (successes + fails))
         f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}")

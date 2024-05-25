@@ -36,29 +36,8 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
 
 
 if __name__ == '__main__':
-    # start shorter ep limit
-    """
-    for r in range(1):
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*4)
-        for i in range(19):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*4, learning_rate=3e-4)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-4)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=5e-5)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-5)
-        for i in range(20):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=5e-6)
-        for i in range(1000):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-6)
-    """
-
-    # constant longer ep limit
     for r in range(5):
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
+        #train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
         for i in range(39):
             train_last_model(total_time_steps=100_000, max_episode_steps=240*6, learning_rate=3e-4)
         for i in range(30):
