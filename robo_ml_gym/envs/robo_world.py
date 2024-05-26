@@ -315,6 +315,85 @@ class RoboWorldEnv(gym.Env):
         self.prev_dist = self.dist
         return reward
 
+    def set_fname(self, fname):
+        self.fname = fname
+        self.verbose_file = f"models/verbose/{self.fname}.txt"
+
+    def print_verbose(self, s):
+        if self.verbose:
+            print(s)
+        if self.save_verbose:
+            with open(self.verbose_file, 'a') as f:
+                f.write(s + '\n')
+
+    def print_visual(self, _str):
+        if self.render_mode == "human":
+            if self.visual_verbose:
+                print(_str)
+
+    def _get_info(self):
+        return {"step": self.total_steps, "ep_step": self.ep_step}
+
+    def _print_info(self):
+        elapsed = int(time.time() - self.start_time)
+        self.score = max(0, self.score)
+        #self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
+        #                   f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
+        #                   f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
+        #                   % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
+        if self.resets == 1:
+            self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist")
+        held_cube = 1 if self.held_cube is not None else 0
+        self.print_verbose(f"%5d, %7d, %6d, %5d,  %.3f, %6d, %6d, %3d, %6d, %.3f"
+                           % (self._get_time_remaining(), self.total_steps+1, self.resets, self.ep_step+1,
+                              self.ef_cube_dist, int(self.score), elapsed, held_cube, self.cubes_stacked,
+                              self.cube_stack_dist))
+
+    def _get_time_remaining(self):
+        # time remaining info
+        time_remaining = 0
+        if self.total_steps_limit > 0:
+            time_elapsed = time.time() - self.start_time
+            total_steps_remaining = self.total_steps_limit - self.total_steps
+            time_remaining = int(total_steps_remaining * (time_elapsed / max(1, self.total_steps)))
+        return time_remaining
+
+    def vector_angle(self, a, b):
+        return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
+
+    def _update_dist(self, cube):
+        # TODO: need self.dist for reward func
+        # distance between EF to cube and stack pos
+        self.ef_cube_dist = 1.0
+        self.cube_stack_dist = 1.0
+
+        if self.cubes_stacked == self.cube_count and self.cube_count > 0:
+            # all cubes are stacked
+            cube = self.cubes[0]
+
+        if cube is not None:
+            # cube is held
+            cube_pos = np.array(cube.pos)
+            cube_pos[2] += CUBE_DIM / 2
+            self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
+            self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
+
+        self.dist = self.ef_cube_dist
+        if cube is not None:
+            self.dist = self.cube_stack_dist
+
+        if self.goal == "phantom_touch":
+            self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
+            self.dist = self.ef_cube_dist
+
+        # angle between EF to target and the Z-axis
+        vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
+        self.ef_to_target_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
+        # angle between EF and Z-axis
+        ef_2 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 2)[0])
+        ef_1 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
+        self.ef_angle = self.vector_angle(ef_1 - ef_2, np.array([0.0, 0.0, 1.0]))
+
     def render(self):
         if self.render_mode == "rgb_array":
             return self._render_frame()
@@ -365,14 +444,14 @@ class RoboWorldEnv(gym.Env):
         #pybullet.getAxisAngleFromQuaternion()
         if self.ef_cube_dist < self.pickup_tolerance:
             if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
-                if ((self._is_ef_angle_vertical() and (self.goal == "pickup" or self.goal == "stack")) or
-                        (self.goal == "touch")):
-                    self.held_cube = cube
-                    self.just_picked_up_cube = True
-                    self.picked_up_cube_count += 1
-                    self.cube_constraint_id = pybullet.createConstraint(
-                        self.robot_id, self.joints_count-1, self.cube_id, -1,
-                        pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+                if self._is_ef_angle_vertical():
+                    if self.goal == "pickup" or self.goal == "stack" or self.goal == "touch":
+                        self.held_cube = cube
+                        self.just_picked_up_cube = True
+                        self.picked_up_cube_count += 1
+                        self.cube_constraint_id = pybullet.createConstraint(
+                            self.robot_id, self.joints_count-1, self.cube_id, -1,
+                            pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
         if self.cube_constraint_id is not None:
