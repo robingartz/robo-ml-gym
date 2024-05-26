@@ -147,95 +147,107 @@ class RoboWorldEnv(gym.Env):
         self.just_picked_up_cube = False
         self.repeat_worst_performances = True
 
-    def set_fname(self, fname):
-        self.fname = fname
-        self.verbose_file = f"models/verbose/{self.fname}.txt"
+    def step(self, action):
+        """move joints, step physics sim, check gripper, return obs, reward, termination"""
+        self._process_action(action)
 
-    def print_verbose(self, s):
-        if self.verbose:
-            print(s)
-        if self.save_verbose:
-            with open(self.verbose_file, 'a') as f:
-                f.write(s + '\n')
+        # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
+        #for i in range(self.total_steps_between_interaction):
+        pybullet.stepSimulation()
 
-    def print_visual(self, _str):
+        for cube in self.cubes:
+            cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
+        self._check_cubes_stacked()
+        unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
+
+        self.prev_end_effector_pos = self.ef_pos
+        ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
+        self.ef_pos = np.array(ef_pos, dtype=np.float32)
+        self._update_dist(unstacked_cube)
+        self._update_target_pos(unstacked_cube)
+
         if self.render_mode == "human":
-            if self.visual_verbose:
-                print(_str)
+            self._process_keyboard_events()
 
-    def _get_info(self):
-        return {"step": self.total_steps, "ep_step": self.ep_step}
+            # debug line from ef_pos to target_pos
+            if self.orn_line is not None:
+                pybullet.removeUserDebugItem(self.orn_line)
+            self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
 
-    def _print_info(self):
-        elapsed = int(time.time() - self.start_time)
-        self.score = max(0, self.score)
-        #self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
-        #                   f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
-        #                   f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
-        #                   % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
-        if self.resets == 1:
-            self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist")
-        held_cube = 1 if self.held_cube is not None else 0
-        self.print_verbose(f"%5d, %7d, %6d, %5d,  %.3f, %6d, %6d, %3d, %6d, %.3f"
-                           % (self._get_time_remaining(), self.total_steps+1, self.resets, self.ep_step+1,
-                              self.ef_cube_dist, int(self.score), elapsed, held_cube, self.cubes_stacked,
-                              self.cube_stack_dist))
+        terminated = False #self.held_cube is not None #False  #self.dist < 0.056
+        reward = self._get_reward()
+        observation = self._get_obs()
+        info = self._get_info()
+        #reward = self._process_terminated_state(terminated, reward)
 
-    def _get_time_remaining(self):
-        # time remaining info
-        time_remaining = 0
-        if self.total_steps_limit > 0:
-            time_elapsed = time.time() - self.start_time
-            total_steps_remaining = self.total_steps_limit - self.total_steps
-            time_remaining = int(total_steps_remaining * (time_elapsed / max(1, self.total_steps)))
-        return time_remaining
+        if self.render_mode == "human":
+            self._render_frame()
 
-    def vector_angle(self, a, b):
-        return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
+        self.total_steps += 1
+        self.ep_step += 1
 
-    def _update_dist(self, cube):
-        # TODO: need self.dist for reward func
-        # distance between EF to cube and stack pos
-        self.ef_cube_dist = 1.0
-        self.cube_stack_dist = 1.0
+        if self.ep_step == self.ep_step_limit-1 or terminated:
+            self._print_info()
 
-        if self.cubes_stacked == self.cube_count and self.cube_count > 0:
-            # all cubes are stacked
-            cube = self.cubes[0]
+        return observation, reward, terminated, False, info
 
-        if cube is not None:
-            # cube is held
-            cube_pos = np.array(cube.pos)
-            cube_pos[2] += CUBE_DIM / 2
-            self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
-            self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
+    def reset(self, seed=None, options=None):
+        """resets the robot position, cube position, score and gripper states"""
+        # seeds self.np_random
+        super().reset(seed=seed)
 
-        self.dist = self.ef_cube_dist
-        if cube is not None:
-            self.dist = self.cube_stack_dist
-
-        if self.goal == "phantom_touch":
-            self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
-            self.dist = self.ef_cube_dist
-
-        # angle between EF to target and the Z-axis
-        vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
-        self.ef_to_target_angle = self.vector_angle(vec, np.array([0.0, 0.0, 1.0]))
-        # angle between EF and Z-axis
-        ef_2 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 2)[0])
-        ef_1 = np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
-        self.ef_angle = self.vector_angle(ef_1 - ef_2, np.array([0.0, 0.0, 1.0]))
-
-    def render(self):
-        if self.render_mode == "rgb_array":
-            return self._render_frame()
-
-    def _render_frame(self):
+        # set up the environment if not yet done
         if self.physics_client is None:
             self._setup()
 
+        self._tally_successes_fails()
+
+        # reset vars
+        self.held_cube = None
+        self.picked_up_cube_count = 0
+        self.prev_dist = self.dist = 1.0
+        self.ef_to_target_angle = 90
+        if self.cube_constraint_id is not None:
+            pybullet.removeConstraint(self.cube_constraint_id)
+            self.cube_constraint_id = None
+
+        # reset the robot's position
+        pybullet.restoreState(self.init_state)
+
+        for debug_point in self.debug_points:
+            pybullet.removeUserDebugItem(debug_point)
+
+        # reset cube_pos, target_pos values
+        self.ef_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
+        self._reset_target_pos()
+        self._reset_cubes()
+
+        observation = self._get_obs()
+        info = self._get_info()
+
         if self.render_mode == "human":
-            time.sleep(1.0/240.0)
+            self._render_frame()
+
+        self.resets += 1
+        self.ep_step = 0
+        self.carry_over_score += int(self.score)
+        self.score = 0
+
+        return observation, info
+
+    def _setup(self):
+        """pybullet setup"""
+        self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
+        pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+        # gravity, ground, visual objects & debug points, cubes, ABB IRB120
+        pybullet.setGravity(0, 0, -9.81)
+        plane_id = pybullet.loadURDF("plane.urdf")
+        self._setup_visual_objects()
+        self._setup_cubes()
+        self._setup_irb120()
+
+        self.init_state = pybullet.saveState()
 
     def _get_obs(self):
         """returns the observation space: array of joint positions and the distance between EF and target"""
@@ -263,19 +275,6 @@ class RoboWorldEnv(gym.Env):
 
         return observations
 
-    def _get_dist_reward(self):
-        reward = 1 / max(self.dist, 0.05 / 2)
-        return reward
-
-    def _get_simple_reward_normalised(self):
-        REWARD_PER_STACKED_CUBE = 5
-        norm_ef_cube_dist = self.ef_cube_dist / self.init_ef_cube_dist
-        reward = 1 / max(norm_ef_cube_dist, 0.05 / 2) / 40
-        norm_cube_stack_dist = self.cube_stack_dist / self.init_cube_stack_dist
-        reward += 1 / max(norm_cube_stack_dist, 0.05 / 2) / 40
-        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
-        return reward
-
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides!!!
@@ -300,7 +299,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += min((self.ef_angle - 90) / 90, 2) * 4
+        reward += min((self.ef_angle - 180) / 90, 2) * 4
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
@@ -314,6 +313,30 @@ class RoboWorldEnv(gym.Env):
         #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
+        return reward
+
+    def render(self):
+        if self.render_mode == "rgb_array":
+            return self._render_frame()
+
+    def _render_frame(self):
+        if self.physics_client is None:
+            self._setup()
+
+        if self.render_mode == "human":
+            time.sleep(1.0/240.0)
+
+    def _get_dist_reward(self):
+        reward = 1 / max(self.dist, 0.05 / 2)
+        return reward
+
+    def _get_simple_reward_normalised(self):
+        REWARD_PER_STACKED_CUBE = 5
+        norm_ef_cube_dist = self.ef_cube_dist / self.init_ef_cube_dist
+        reward = 1 / max(norm_ef_cube_dist, 0.05 / 2) / 40
+        norm_cube_stack_dist = self.cube_stack_dist / self.init_cube_stack_dist
+        reward += 1 / max(norm_cube_stack_dist, 0.05 / 2) / 40
+        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
         return reward
 
     def _process_keyboard_events(self):
@@ -334,18 +357,6 @@ class RoboWorldEnv(gym.Env):
         return self.ef_angle > 135
         #return self.ef_to_target_angle > 135  # 135 / 180 * np.pi = 2.356
 
-    def _try_pickup_cube(self, cube):
-        # TODO: allow picking up from an angle
-        if self.ef_cube_dist < self.pickup_tolerance:
-            if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
-                if (self.goal == "touch") or (self.goal == "pickup" and self._is_ef_angle_vertical()):
-                    self.held_cube = cube
-                    self.just_picked_up_cube = True
-                    self.picked_up_cube_count += 1
-                    self.cube_constraint_id = pybullet.createConstraint(
-                        self.robot_id, self.joints_count-1, self.cube_id, -1,
-                        pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
-
     def _pickup_cube(self, cube):
         # TODO: allow picking up from an angle
         #pybullet.rayTest()
@@ -353,8 +364,9 @@ class RoboWorldEnv(gym.Env):
         #pybullet.getQuaternionFromEuler()
         #pybullet.getAxisAngleFromQuaternion()
         if self.ef_cube_dist < self.pickup_tolerance:
-            if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.pickup_xy_tolerance):
-                if self._is_ef_angle_vertical():
+            if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
+                if ((self._is_ef_angle_vertical() and (self.goal == "pickup" or self.goal == "stack")) or
+                        (self.goal == "touch")):
                     self.held_cube = cube
                     self.just_picked_up_cube = True
                     self.picked_up_cube_count += 1
@@ -387,16 +399,7 @@ class RoboWorldEnv(gym.Env):
 
         if self.held_cube is None:
             # pickup cube and move towards the stack_pos
-            self._try_pickup_cube(self.get_first_unstacked_cube())
-
-    def _process_phantom_interactions(self):
-        """pickup cube if EF close"""
-        if self.held_cube is not None:
-            self.just_picked_up_cube = False
-
-        if self.held_cube is None:
-            # pickup cube and move towards the stack_pos
-            self._try_pickup_cube(self.cubes[0])
+            self._pickup_cube(self.get_first_unstacked_cube())
 
     def _process_cube_interactions_pickup_drop(self):
         """pickup cube if EF close, drop cube if close to target"""
@@ -444,50 +447,6 @@ class RoboWorldEnv(gym.Env):
                 self.cubes_stacked = idx + 1
             else:
                 break
-
-    def step(self, action):
-        """move joints, step physics sim, check gripper, return obs, reward, termination"""
-        self._process_action(action)
-
-        # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
-        #for i in range(self.total_steps_between_interaction):
-        pybullet.stepSimulation()
-
-        for cube in self.cubes:
-            cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
-        self._check_cubes_stacked()
-        unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
-
-        self.prev_end_effector_pos = self.ef_pos
-        ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
-        self.ef_pos = np.array(ef_pos, dtype=np.float32)
-        self._update_dist(unstacked_cube)
-        self._update_target_pos(unstacked_cube)
-
-        if self.render_mode == "human":
-            self._process_keyboard_events()
-
-            # debug line from ef_pos to target_pos
-            if self.orn_line is not None:
-                pybullet.removeUserDebugItem(self.orn_line)
-            self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
-
-        terminated = False #self.held_cube is not None #False  #self.dist < 0.056
-        reward = self._get_reward()
-        observation = self._get_obs()
-        info = self._get_info()
-        #reward = self._process_terminated_state(terminated, reward)
-
-        if self.render_mode == "human":
-            self._render_frame()
-
-        self.total_steps += 1
-        self.ep_step += 1
-
-        if self.ep_step == self.ep_step_limit-1 or terminated:
-            self._print_info()
-
-        return observation, reward, terminated, False, info
 
     def _process_action(self, action):
         """ move robot joints with either position control or velocity control """
@@ -559,64 +518,6 @@ class RoboWorldEnv(gym.Env):
         elif self.goal == "stack":
             if self.cubes_stacked == self.cube_count: self.success_tally += 1
             else: self.fail_tally += 1
-
-    def reset(self, seed=None, options=None):
-        """resets the robot position, cube position, score and gripper states"""
-        # seeds self.np_random
-        super().reset(seed=seed)
-
-        # set up the environment if not yet done
-        if self.physics_client is None:
-            self._setup()
-
-        self._tally_successes_fails()
-
-        # reset vars
-        self.held_cube = None
-        self.picked_up_cube_count = 0
-        self.prev_dist = self.dist = 1.0
-        self.ef_to_target_angle = 90
-        if self.cube_constraint_id is not None:
-            pybullet.removeConstraint(self.cube_constraint_id)
-            self.cube_constraint_id = None
-
-        # reset the robot's position
-        pybullet.restoreState(self.init_state)
-
-        for debug_point in self.debug_points:
-            pybullet.removeUserDebugItem(debug_point)
-
-        # reset cube_pos, target_pos values
-        self.ef_pos = np.array(pybullet.getLinkState(self.robot_id, self.joints_count-1)[0], dtype=np.float32)
-        self._reset_target_pos()
-        self._reset_cubes()
-
-        observation = self._get_obs()
-        info = self._get_info()
-
-        if self.render_mode == "human":
-            self._render_frame()
-
-        self.resets += 1
-        self.ep_step = 0
-        self.carry_over_score += int(self.score)
-        self.score = 0
-
-        return observation, info
-
-    def _setup(self):
-        """pybullet setup"""
-        self.physics_client = pybullet.connect(pybullet.GUI if self.render_mode == "human" else pybullet.DIRECT)
-        pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())
-
-        # gravity, ground, visual objects & debug points, cubes, ABB IRB120
-        pybullet.setGravity(0, 0, -9.81)
-        plane_id = pybullet.loadURDF("plane.urdf")
-        self._setup_visual_objects()
-        self._setup_cubes()
-        self._setup_irb120()
-
-        self.init_state = pybullet.saveState()
 
     def _reset_target_pos(self):
         if self.cube_count > 0:
