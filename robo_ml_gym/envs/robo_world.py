@@ -217,7 +217,6 @@ class RoboWorldEnv(gym.Env):
         if self.goal == "phantom_touch":
             self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
             self.dist = self.ef_cube_dist
-            self.print_visual("ef dist: %.3f    dist: %.3f" % (self.ef_cube_dist, self.dist))
 
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
@@ -249,9 +248,11 @@ class RoboWorldEnv(gym.Env):
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
         height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
-        self.print_visual("rel_pos: %.3f %.3f %.3f,   target_pos: %.2f %.2f %.2f"
-                          % (rel_pos[0], rel_pos[1], rel_pos[2], self.target_pos[0], self.target_pos[1], self.target_pos[2]))
-        #self.print_visual(f"joints: {joint_positions}")
+        #linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
+        #if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
+        self.print_visual("target_pos: [%.2f %.2f %.2f], rel_pos: [%.3f %.3f %.3f], dist: %.2f, ef_z_angle: %2d, stacked: %d"
+                          % (self.target_pos[0], self.target_pos[1], self.target_pos[2],
+                             rel_pos[0], rel_pos[1], rel_pos[2], self.dist, self.ef_angle, self.cubes_stacked))
 
         observations = {
             "joints": joint_positions,
@@ -354,7 +355,6 @@ class RoboWorldEnv(gym.Env):
         if self.ef_cube_dist < self.pickup_tolerance:
             if self._xy_close(self.get_first_unstacked_cube().pos, self.ef_pos, self.pickup_xy_tolerance):
                 if self._is_ef_angle_vertical():
-                    self.print_visual(f"pickup cube {cube.Id}")
                     self.held_cube = cube
                     self.just_picked_up_cube = True
                     self.picked_up_cube_count += 1
@@ -366,7 +366,6 @@ class RoboWorldEnv(gym.Env):
         if self.cube_constraint_id is not None:
             linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
             if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
-                self.print_visual(f"release cube {self.held_cube.Id}")
                 self.held_cube = None
                 pybullet.removeConstraint(self.cube_constraint_id)
                 self.cube_constraint_id = None
@@ -419,7 +418,6 @@ class RoboWorldEnv(gym.Env):
                 pass
 
         elif self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
-            self.print_visual("cube on stack target")
             if self.cubes_stacked == self.cube_count:
                 if self.cube_constraint_id is not None:
                     self.held_cube = None
@@ -432,9 +430,6 @@ class RoboWorldEnv(gym.Env):
             # not holding cube and not close to stack_pos: move towards stack_pos
             pass
 
-        self.print_visual(f"stacked: {self.cubes_stacked}, id: {self.cube_id}, cube close: {self.held_cube is not None}")
-        #, stack close: {self.cube_stack_dist < (CUBE_DIM / 2)}, ")
-
     def get_first_unstacked_cube(self):
         """check how many cubes (must be consecutive cubes) are on stack_pos in the xy plane"""
         try:
@@ -446,10 +441,7 @@ class RoboWorldEnv(gym.Env):
         self.cubes_stacked = 0
         for idx, cube in enumerate(self.cubes):
             if self._xy_close(cube.pos, self.stack_pos, self.stack_tolerance):
-                #temp_arr = np.array([self.stack_pos[0], self.stack_pos[1], cube.pos[2]])
-                #if np.allclose(cube.pos, temp_arr, atol=CUBE_DIM/2):
                 self.cubes_stacked = idx + 1
-                self.print_visual(f"cube {idx} stacked")
             else:
                 break
 
@@ -480,11 +472,6 @@ class RoboWorldEnv(gym.Env):
                 pybullet.removeUserDebugItem(self.orn_line)
             self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
 
-            # debug point at stacking target location
-            #debug_point = pybullet.addUserDebugPoints(
-            #    pointPositions=[self.target_pos], pointColorsRGB=[[0, 1, 0]], pointSize=8, lifeTime=1)
-            #self.debug_points.append(debug_point)
-
         terminated = False #self.held_cube is not None #False  #self.dist < 0.056
         reward = self._get_reward()
         observation = self._get_obs()
@@ -503,7 +490,7 @@ class RoboWorldEnv(gym.Env):
         return observation, reward, terminated, False, info
 
     def _process_action(self, action):
-        # move joints
+        """ move robot joints with either position control or velocity control """
         for joint_index in range(0, 0+self.joints_count-1):
             pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
                                            controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
@@ -543,7 +530,6 @@ class RoboWorldEnv(gym.Env):
 
             if unstacked_cube is not None:
                 self.cube_id = unstacked_cube.Id
-                self.print_visual(f"self.held_cube: {self.held_cube}")
                 if self.held_cube is not None:
                     self.target_pos = np.array(self.stack_pos)
                     self.target_pos[2] += CUBE_DIM * self.cubes_stacked
@@ -553,22 +539,14 @@ class RoboWorldEnv(gym.Env):
             else:
                 self.target_pos = self.home_pos
 
-    def reset(self, seed=None, options=None):
-        """resets the robot position, cube position, score and gripper states"""
-        # we need the following line to seed self.np_random
-        super().reset(seed=seed)
-
-        # set up the environment if not yet done
-        if self.physics_client is None:
-            self._setup()
-
-        # remove the cube to EF constraint
+    def _tally_successes_fails(self):
+        # held cube tallies
         if self.held_cube is not None:
             self.carry_has_cube += 1
         else:
             self.carry_has_no_cube += 1
 
-        # tally full success
+        # tally success/failures
         if self.goal == "pickup":
             if self.held_cube is not None: self.success_tally += 1
             else: self.fail_tally += 1
@@ -582,6 +560,18 @@ class RoboWorldEnv(gym.Env):
             if self.cubes_stacked == self.cube_count: self.success_tally += 1
             else: self.fail_tally += 1
 
+    def reset(self, seed=None, options=None):
+        """resets the robot position, cube position, score and gripper states"""
+        # seeds self.np_random
+        super().reset(seed=seed)
+
+        # set up the environment if not yet done
+        if self.physics_client is None:
+            self._setup()
+
+        self._tally_successes_fails()
+
+        # reset vars
         self.held_cube = None
         self.picked_up_cube_count = 0
         self.prev_dist = self.dist = 1.0
