@@ -35,9 +35,12 @@ def save_score(env, model, path, scores_path=SCORES_FILE):
         successes = env.unwrapped.success_tally
         fails = env.unwrapped.fail_tally
         fails = 1 if fails == 0 else fails
-        success_rate = int(successes / (successes + fails) * 100)
-        avg_score = int(env.unwrapped.carry_over_score / (successes + fails))
-        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}")
+        runs = successes + fails
+        success_rate = int(successes / runs * 100)
+        avg_score = int(env.unwrapped.carry_over_score / runs)
+        avg_dist = "%.2f" % (env.unwrapped.dist_tally / runs)
+        avg_ef_angle = int(env.unwrapped.ef_angle_tally / runs)
+        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate},{avg_dist},{avg_ef_angle}")
 
 
 def get_previous_model_names():
@@ -48,10 +51,14 @@ def get_previous_model_names():
     return last_model_names
 
 
-def get_previous_model(env, custom_objects=None):
+def get_previous_model(env, custom_objects=None, match_str=None):
     if custom_objects is None:
         custom_objects = {}
     for last_model_name in get_previous_model_names():
+        if match_str is not None:
+            if match_str not in last_model_name:
+                continue
+
         print("Loading model:", last_model_name)
         last_model_name = last_model_name.strip('\n')
 

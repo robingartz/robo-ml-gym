@@ -2,7 +2,7 @@ import gymnasium as gym
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import utils
 
-GROUP_PREFIX = "A17"
+GROUP_PREFIX = "A18"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 
 
@@ -22,7 +22,8 @@ def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
 
 
-def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant_cube_spawn=False, learning_rate=3e-4):
+def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant_cube_spawn=False, learning_rate=3e-4,
+                     match_str=None):
     custom_objects = {'learning_rate': learning_rate}
     env = gym.make(ENV_ROBOWORLD,
                    max_episode_steps=max_episode_steps,
@@ -31,7 +32,7 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
                    total_steps_limit=total_time_steps,
                    constant_cube_spawn=constant_cube_spawn)
 
-    model, prev_steps = utils.get_previous_model(env, custom_objects)
+    model, prev_steps = utils.get_previous_model(env, custom_objects, match_str)
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_time_steps, prev_steps=prev_steps)
 
 
@@ -44,14 +45,16 @@ if __name__ == '__main__':
     #    train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*6)
     #    train_last_model(total_time_steps=100_000, max_episode_steps=240 * 6, learning_rate=3e-4)
     #    train_last_model(total_time_steps=100_000, max_episode_steps=240 * 6, learning_rate=3e-4)
+    model = "models/PPO-v9000k-A16-240526_064133"
 
     #train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8)
     for r in range(5):
-        #for i in range(38):
-        #    train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240 * 8, learning_rate=3e-4, match_str=model)
+        for i in range(19):
+            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
         for i in range(20):
             train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
-        for i in range(20):
+        for i in range(10):
             train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
         #for i in range(20):
         #    train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)

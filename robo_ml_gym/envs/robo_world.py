@@ -139,6 +139,8 @@ class RoboWorldEnv(gym.Env):
         self.carry_has_no_cube = 0
         self.success_tally = 0
         self.fail_tally = 0
+        self.dist_tally = 0
+        self.ef_angle_tally = 0
 
         # unused
         self.constant_cube_spawn = constant_cube_spawn
@@ -299,7 +301,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += max(0, min(2, (self.ef_angle - 180) / 90)) * 4
+        reward += max(0, min(2, (self.ef_angle - 180) / 90)) * 15
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
@@ -342,12 +344,12 @@ class RoboWorldEnv(gym.Env):
         #                   f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
         #                   % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
         if self.resets == 1:
-            self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist")
+            self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist,ef_angle")
         held_cube = 1 if self.held_cube is not None else 0
-        self.print_verbose(f"%5d, %7d, %6d, %5d,  %.3f, %6d, %6d, %3d, %6d, %.3f"
+        self.print_verbose(f"%5d, %7d, %6d, %5d,  %.3f, %6d, %6d, %3d, %6d,     %.3f,     %3d"
                            % (self._get_time_remaining(), self.total_steps+1, self.resets, self.ep_step+1,
                               self.ef_cube_dist, int(self.score), elapsed, held_cube, self.cubes_stacked,
-                              self.cube_stack_dist))
+                              self.cube_stack_dist, self.ef_angle))
 
     def _get_time_remaining(self):
         # time remaining info
@@ -378,6 +380,7 @@ class RoboWorldEnv(gym.Env):
             self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
             self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
 
+        # TODO: FIX ME
         self.dist = self.ef_cube_dist
         if cube is not None:
             self.dist = self.cube_stack_dist
@@ -575,6 +578,9 @@ class RoboWorldEnv(gym.Env):
             self.carry_has_cube += 1
         else:
             self.carry_has_no_cube += 1
+
+        self.dist_tally += self.dist
+        self.ef_angle_tally += self.ef_angle
 
         # tally success/failures
         if self.goal == "pickup":
