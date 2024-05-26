@@ -299,7 +299,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += min((self.ef_angle - 180) / 90, 2) * 4
+        reward += max(0, min(2, (self.ef_angle - 180) / 90)) * 4
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
@@ -454,9 +454,11 @@ class RoboWorldEnv(gym.Env):
                             pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
-        if self.cube_constraint_id is not None:
+        if self.cube_constraint_id is not None and self.held_cube is not None:
             linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
-            if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
+            ef_speed = abs(np.linalg.norm(np.array(linear_vel)))
+            if ef_speed < 0.01:
+                # TODO: EF needs to go up / wait for cube to drop for a few ms before moving to next cube
                 self.held_cube = None
                 pybullet.removeConstraint(self.cube_constraint_id)
                 self.cube_constraint_id = None
@@ -488,29 +490,19 @@ class RoboWorldEnv(gym.Env):
         if self.held_cube is None:
             # move towards the cube
             if self.cubes_stacked < self.cube_count:
-                if self._xy_close(self.get_first_unstacked_cube().pos, self.stack_pos, self.stack_tolerance):
-                    # release cube and move towards the next cube
-                    self._release_cube()
-                else:
-                    if self.held_cube is None:
-                        # pickup cube and move towards the stack_pos
-                        self._pickup_cube(self.get_first_unstacked_cube())
+                if self.held_cube is None:
+                    # pickup cube and move towards the stack_pos
+                    self._pickup_cube(self.get_first_unstacked_cube())
             else:
                 # all cubes stacked
                 pass
-
-        elif self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
-            if self.cubes_stacked == self.cube_count:
-                if self.cube_constraint_id is not None:
-                    self.held_cube = None
-                    pybullet.removeConstraint(self.cube_constraint_id)
-            else:
+        else:
+            if self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
                 # release cube and move towards the next cube
                 self._release_cube()
-
-        else:
-            # not holding cube and not close to stack_pos: move towards stack_pos
-            pass
+            else:
+                # not holding cube and not close to stack_pos: move towards stack_pos
+                pass
 
     def get_first_unstacked_cube(self):
         """check how many cubes (must be consecutive cubes) are on stack_pos in the xy plane"""
