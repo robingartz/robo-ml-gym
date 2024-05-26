@@ -34,7 +34,8 @@ class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
-                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="pickup"):
+                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
+                 orientation="vertical"):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
         to stack a number of cubes at the target_pos.
@@ -46,7 +47,8 @@ class RoboWorldEnv(gym.Env):
         :param total_steps_limit:
         :param fname_app:
         :param constant_cube_spawn:
-        :param goal: str "pickup" | "stack"
+        :param goal: str "pickup" | "stack" | "touch" | "phantom_touch" | "place"
+        :param orientation: str "vertical" | "horizontal"
         """
 
         # relative min/max
@@ -96,11 +98,11 @@ class RoboWorldEnv(gym.Env):
         self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
 
         # scoring
-        goal = "phantom_touch"
         self.goal = goal
         self.score = 0
 
         # robot vars
+        self.orientation = orientation
         self.robot_id = None
         self.joints_count = None
         self.ef_pos = None  # end effector position (x, y, z)
@@ -117,7 +119,7 @@ class RoboWorldEnv(gym.Env):
         self.init_cube_stack_dist = 1.0
 
         # cube vars
-        self.cube_count = 1
+        self.cube_count = 4
         self.cubes = []
         self.cube_ids = []
         self.stack_pos = None
@@ -297,7 +299,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += min((self.ef_angle - 90) / 90, 2) * 1
+        reward += min((self.ef_angle - 90) / 90, 2) * 4
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
@@ -307,7 +309,7 @@ class RoboWorldEnv(gym.Env):
         #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
         #    reward = max_reward_per_step * ep_steps_remaining
 
-        reward = self._get_dist_reward()
+        #reward = self._get_dist_reward()
         #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
@@ -324,11 +326,7 @@ class RoboWorldEnv(gym.Env):
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
             self.visual_verbose = not self.visual_verbose
         if key_reset in keys and keys[key_reset] & pybullet.KEY_WAS_TRIGGERED:
-            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=0, targetValue=0.0, targetVelocity=0)
-            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
-            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
-            for i in range(3, 7):
-                pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=i, targetValue=0.0, targetVelocity=0)
+            self._reset_robot_joint_values()
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
@@ -491,7 +489,7 @@ class RoboWorldEnv(gym.Env):
         reward = self._get_reward()
         observation = self._get_obs()
         info = self._get_info()
-        reward = self._process_terminated_state(terminated, reward)
+        #reward = self._process_terminated_state(terminated, reward)
 
         if self.render_mode == "human":
             self._render_frame()
@@ -519,7 +517,7 @@ class RoboWorldEnv(gym.Env):
             else:
                 reward = 69000
             self.score += reward
-        self.score = min(self.score, 69000)
+        #self.score = min(self.score, 69000)
         if terminated:
             self.score += 1000
         return reward
@@ -696,21 +694,34 @@ class RoboWorldEnv(gym.Env):
 
     def _setup_irb120(self):
         # ToDo: add inertia to urdf file
-        start_pos = [0, 0, 0.18/2 + 0.65 - 0.3]
-        start_orientation = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
-        start_pos = [0.3, 0, 0]
-        start_orientation = pybullet.getQuaternionFromEuler([0, 0, 0])
+        if self.orientation == "horizontal":
+            base_pos = [0, 0, 0.18/2 + 0.65 - 0.3]
+            base_orn = pybullet.getQuaternionFromEuler([0, np.pi/2, 0])
+        elif self.orientation == "vertical":
+            base_pos = [0.3, 0, 0]
+            base_orn = pybullet.getQuaternionFromEuler([0, 0, 0])
+        else:
+            raise RuntimeError(f"Invalid orientation: {self.orientation}")
+
         urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
         if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
             urdf_path = "robo_ml_gym/" + urdf_path
-        self.robot_id = pybullet.loadURDF(urdf_path, basePosition=start_pos, baseOrientation=start_orientation,
+        self.robot_id = pybullet.loadURDF(urdf_path, basePosition=base_pos, baseOrientation=base_orn,
                                           useFixedBase=1, flags=pybullet.URDF_MAINTAIN_LINK_ORDER)
         self.joints_count = pybullet.getNumJoints(self.robot_id)
+        self._reset_robot_joint_values()
 
-        # set the initial joint starting positions
-        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
-        pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
-        #pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=4, targetValue=0.6-3.14/2, targetVelocity=0)
+    def _reset_robot_joint_values(self):
+        """ sets the initial joint starting positions """
+        if self.orientation == "horizontal":
+            joint_values = [0.0, -0.9, 0.0, 0.0, 0.0, 0.0, 0.0]
+        elif self.orientation == "vertical":
+            joint_values = [0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0]
+        else:
+            raise RuntimeError(f"Invalid orientation: {self.orientation}")
+
+        for idx, joint_value in enumerate(joint_values):
+            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=idx, targetValue=joint_value, targetVelocity=0)
 
     def close(self):
         if self.physics_client is not None:

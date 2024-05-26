@@ -13,7 +13,8 @@ class Run:
         sims = 100_000
 
         env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=ep_step_limit, render_mode="human",
-                       verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn)
+                       verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn, goal="stack",
+                       orientation="vertical")
 
         # load model
         model = None
