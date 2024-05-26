@@ -247,7 +247,10 @@ class RoboWorldEnv(gym.Env):
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
         height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
-        self.print_visual("rel_pos: %.3f %.3f %.3f" % (rel_pos[0], rel_pos[1], rel_pos[2]))
+        self.print_visual("rel_pos: %.3f %.3f %.3f,   target_pos: %.2f %.2f %.2f"
+                          % (rel_pos[0], rel_pos[1], rel_pos[2], self.target_pos[0], self.target_pos[1], self.target_pos[2]))
+        #self.print_visual(f"joints: {joint_positions}")
+
         observations = {
             "joints": joint_positions,
             "rel_pos": rel_pos,
@@ -258,7 +261,7 @@ class RoboWorldEnv(gym.Env):
         return observations
 
     def _get_dist_reward(self):
-        reward = 1 / max(self.dist, 0.05 / 2) / 5
+        reward = 1 / max(self.dist, 0.05 / 2)
         return reward
 
     def _get_simple_reward_normalised(self):
@@ -294,7 +297,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        #reward += min((self.ef_angle - 90) / 90, 2) * 1
+        reward += min((self.ef_angle - 90) / 90, 2) * 1
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
@@ -304,7 +307,7 @@ class RoboWorldEnv(gym.Env):
         #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
         #    reward = max_reward_per_step * ep_steps_remaining
 
-        #reward = self._get_dist_reward()
+        reward = self._get_dist_reward()
         #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
@@ -321,6 +324,7 @@ class RoboWorldEnv(gym.Env):
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
             self.visual_verbose = not self.visual_verbose
         if key_reset in keys and keys[key_reset] & pybullet.KEY_WAS_TRIGGERED:
+            pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=0, targetValue=0.0, targetVelocity=0)
             pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=1, targetValue=0.5, targetVelocity=0)
             pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=2, targetValue=0.5, targetVelocity=0)
             for i in range(3, 7):
@@ -386,7 +390,7 @@ class RoboWorldEnv(gym.Env):
 
         if self.held_cube is None:
             # pickup cube and move towards the stack_pos
-            self._try_pickup_cube(self.cubes[0])
+            self._try_pickup_cube(self.get_first_unstacked_cube())
 
     def _process_phantom_interactions(self):
         """pickup cube if EF close"""
@@ -685,7 +689,8 @@ class RoboWorldEnv(gym.Env):
             cube_id = pybullet.createMultiBody(mass, cube_shape_id, basePosition=self.robot_workspace.get_rnd_plane_point(CUBE_DIM/2))
             cube_pos, cube_orn = pybullet.getBasePositionAndOrientation(cube_id)
             self.cubes.append(Cube(cube_id, cube_pos, cube_orn))
-        self.cube_id = self.cubes[0].Id
+        if self.cube_count > 0:
+            self.cube_id = self.cubes[0].Id
         self.stack_pos = self.robot_workspace.get_rnd_plane_point(CUBE_DIM)
         self._setup_cube_positions()
 
