@@ -301,7 +301,7 @@ class RoboWorldEnv(gym.Env):
             reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += max(0, min(2, (self.ef_angle - 180) / 90)) * 15
+        reward += max(0, (self.ef_angle - 90) / 90) * 15
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
