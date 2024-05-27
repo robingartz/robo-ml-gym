@@ -312,7 +312,6 @@ class RoboWorldEnv(gym.Env):
         #    reward = max_reward_per_step * ep_steps_remaining
 
         #reward = self._get_dist_reward()
-        #print("r: %.3f, %.1f" %(self.ef_cube_dist, reward))
         self.score += reward
         self.prev_dist = self.dist
         return reward
