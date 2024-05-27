@@ -26,6 +26,7 @@ BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
 #BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.12)  # box above ground and closer to robot
 CUBE_DIM = 0.05
 REL_MAX_DIS = 2.0
+# TODO: what MAX_JOINT_VEL to use?
 MAX_JOINT_VEL = 1.0
 FLT_EPSILON = 0.0000001
 
@@ -151,6 +152,8 @@ class RoboWorldEnv(gym.Env):
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
+        self.print_visual(f"actions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]" % (
+            action[0], action[1], action[2], action[3], action[4], action[5]))
         self._process_action(action)
 
         # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
@@ -286,22 +289,29 @@ class RoboWorldEnv(gym.Env):
         REWARD_FOR_HELD_CUBE = 2
         REWARD_PER_STACKED_CUBE = 0
 
-        reward = self._get_dist_reward()
+        #reward = self._get_dist_reward()
+        reward = 1 / max(self.dist, 0.05 / 2)  # multiplicative inverse function with upper limit
+        reward = -400 * self.dist + 40
+        reward = -100 * self.dist + 10
+        reward = -10 * self.dist + 1
+        #reward = max(0.0, -400 * self.dist + 40)
+        #reward = max(0.0, -100 * self.dist + 10)
+        #reward = max(0.0, -10 * self.dist + 1)
 
-        if self.ef_pos[2] < 0:
-            reward -= PENALTY_FOR_EF_GROUND_COL
+        #if self.ef_pos[2] < 0:
+        #    reward -= PENALTY_FOR_EF_GROUND_COL
 
-        if self.held_cube is not None:
-            #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
-            reward += REWARD_FOR_HELD_CUBE
-            #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
-            #    reward -= PENALTY_FOR_CUBE_GROUND_COL
+        #if self.held_cube is not None:
+        #    #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
+        #    reward += REWARD_FOR_HELD_CUBE
+        #    #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
+        #    #    reward -= PENALTY_FOR_CUBE_GROUND_COL
 
-        if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
-            reward -= PENALTY_FOR_BELOW_TARGET_Z
+        #if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
+        #    reward -= PENALTY_FOR_BELOW_TARGET_Z
 
         # reward more vertical EF
-        reward += max(0, (self.ef_angle - 90) / 90) * 15
+        #reward += max(0, (self.ef_angle - 90) / 90) * 0
         #reward += (self.ef_to_target_angle / 180) ** 2
 
         #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
