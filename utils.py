@@ -87,8 +87,9 @@ def run(env, model, label, total_time_steps, prev_steps=0):
     try:
         model.learn(total_timesteps=total_time_steps)
         save_score(env, model, path)
-    except KeyboardInterrupt as err:
-        print(err)
+    except KeyboardInterrupt as exc:
+        save_model(env, model, path)
+        raise KeyboardInterrupt from exc
 
     save_model(env, model, path)
 
