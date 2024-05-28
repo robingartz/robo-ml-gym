@@ -59,5 +59,5 @@ if __name__ == '__main__':
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=5e-6)
         utils.close_wandb()
-    for i in range(200):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-5)
+    #for i in range(200):
+    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-5)
