@@ -146,16 +146,10 @@ class RoboWorldEnv(gym.Env):
 
         # 1 EF suction action ([-1,0]: off, [0, 1]: on)
         # + 6 joint actions (individual limits). The control method can be set to velocity or position control
-        low_limits = np.array([-1.0] + min_joint_limits)
-        high_limits = np.array([+1.0] + max_joint_limits)
+        suction_on_limits = [-1.0, 1.0]
+        low_limits = np.array([suction_on_limits[0]] + min_joint_limits)
+        high_limits = np.array([suction_on_limits[1]] + max_joint_limits)
         self.action_space = spaces.Box(np.array(low_limits), np.array(high_limits), dtype=np.float32)
-        #self.action_space = spaces.Dict(
-        #    {
-        #        #"suction_on": spaces.multi_binary.MultiBinary(1),
-        #        #"suction_on": spaces.MultiBinary(1),
-        #        "joints": spaces.Box(min_joint_limits, max_joint_limits, dtype=np.float32)
-        #    }
-        #)
 
         # used from outer scope
         self.info = {
@@ -167,7 +161,6 @@ class RoboWorldEnv(gym.Env):
         self.constant_cube_spawn = constant_cube_spawn
         self.prev_dist = self.dist
         self.prev_end_effector_pos = None
-        self.just_picked_up_cube = False
         self.repeat_worst_performances = True
 
     def step(self, action):
@@ -288,6 +281,7 @@ class RoboWorldEnv(gym.Env):
         rel_pos = self.ef_pos - pos
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
+        # TODO: ef_height above ground or above anything (e.g. cubes)
         ef_height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 1.0)], dtype=np.float32)
         holding_cube = int(self.held_cube is not None)
         _, _, _, _, _, _, vel, _ = pybullet.getLinkState(
@@ -518,7 +512,7 @@ class RoboWorldEnv(gym.Env):
         return self.ef_angle > 135
         #return self.ef_to_target_angle > 135  # 135 / 180 * np.pi = 2.356
 
-    def _pickup_cube(self, cube: Cube):
+    def _try_pickup_cube(self, cube: Cube):
         # TODO: allow picking up from an angle
         #pybullet.rayTest()
         #pybullet.getBasePositionAndOrientation()
@@ -528,26 +522,19 @@ class RoboWorldEnv(gym.Env):
             if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
                 if self._is_ef_angle_vertical():
                     if self.goal == "pickup" or self.goal == "stack" or self.goal == "touch":
-                        self.held_cube = cube
-                        self.just_picked_up_cube = True
-                        self.picked_up_cube_count += 1
-                        self.cube_constraint_id = pybullet.createConstraint(
-                            self.robot_id, self.joints_count-1, self.cube_id, -1,
-                            pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
+                        self._attach_cube(cube)
+
+    def _attach_cube(self, cube):
+        self.held_cube = cube
+        self.picked_up_cube_count += 1
+        self.cube_constraint_id = pybullet.createConstraint(
+            self.robot_id, self.joints_count-1, self.cube_id, -1,
+            pybullet.JOINT_FIXED, [0, 0, 0], [0, 0, 0], [-(CUBE_DIM/2), 0, 0])
 
     def _release_cube(self):
-        if self.cube_constraint_id is not None and self.held_cube is not None:
-            linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
-            ef_speed = abs(np.linalg.norm(np.array(linear_vel)))
-            if ef_speed < 0.01:
-                self.print_visual("released cube")
-                # TODO: EF needs to go up / wait for cube to drop for a few ms before moving to next cube
-                self.held_cube = None
-                pybullet.removeConstraint(self.cube_constraint_id)
-                self.cube_constraint_id = None
-            else:
-                self.print_visual(f"too fast: {abs(np.linalg.norm(np.array(linear_vel)))}")
-                pass
+        self.held_cube = None
+        pybullet.removeConstraint(self.cube_constraint_id)
+        self.cube_constraint_id = None
 
     def _xy_close(self, arr1, arr2, a_tol: float):
         """check if x & y for arr1 & arr2 are within tolerance a_tol"""
@@ -558,31 +545,49 @@ class RoboWorldEnv(gym.Env):
 
     def _process_cube_interactions(self):
         """pickup cube if EF close"""
-        if self.held_cube is not None:
-            self.just_picked_up_cube = False
-
         if self.held_cube is None:
             # pickup cube and move towards the stack_pos
-            self._pickup_cube(self.get_first_unstacked_cube())
+            self._try_pickup_cube(self.get_first_unstacked_cube())
 
     def _process_cube_interactions_pickup_drop(self):
-        """pickup cube if EF close, drop cube if close to target"""
+        """the robot's action will pick up/release the cube (if possible)"""
         if self.held_cube is not None:
-            self.just_picked_up_cube = False
+            # holding a cube
+            if self.suction_on:
+                # keep holding the cube
+                pass
+            else:
+                # suction turned off while holding cube, release the cube
+                self._release_cube()
+        else:
+            # not holding any cube
+            if self.suction_on:
+                #
+                self._try_pickup_cube(self.get_first_unstacked_cube())
+            else:
+                # suction turned off while not holding any cube
+                pass
 
+    def _process_cube_interactions_pickup_drop_auto(self):
+        """pickup cube if EF close, drop cube if close to target,
+        the program will decide when to pickup/release the cube instead of the model"""
         if self.held_cube is None:
             # move towards the cube
             if self.cubes_stacked < self.cube_count:
                 if self.held_cube is None:
                     # pickup cube and move towards the stack_pos
-                    self._pickup_cube(self.get_first_unstacked_cube())
+                    self._try_pickup_cube(self.get_first_unstacked_cube())
             else:
                 # all cubes stacked
                 pass
         else:
             if self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
-                # release cube and move towards the next cube
-                self._release_cube()
+                # only release once EF has stopped moving too fast
+                linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
+                ef_speed = abs(np.linalg.norm(np.array(linear_vel)))
+                if ef_speed < 0.01:
+                    # release cube and move towards the next cube
+                    self._release_cube()
             else:
                 # not holding cube and not close to stack_pos: move towards stack_pos
                 pass
@@ -608,11 +613,16 @@ class RoboWorldEnv(gym.Env):
 
     def _process_action(self, action):
         """ move robot joints with either position control or velocity control """
+        # suction_on is False if < 0.0, True if >= 0.0
+        self.suction_on = action[0] >= 0.0
+
+        # joint actions
+        joint_action = action[1:]
         for joint_index in range(0, 0+self.joints_count-1):
             if self.robot_stopped:
                 self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.POSITION_CONTROL, 0.0)
             else:
-                self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, action[joint_index])
+                self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, joint_action[joint_index])
 
     @staticmethod
     def _set_joint_motor_control2(body_id: int, joint_index: int, control_mode: int, action: float):
