@@ -7,6 +7,7 @@ import os
 import numpy as np
 import pybullet
 import pybullet_data
+import wandb
 
 # gym
 import gymnasium as gym
