@@ -135,12 +135,12 @@ class RoboWorldEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 # "cubes_stacked": spaces.multi_binary.MultiBinary(1),
-                #"suction_on": spaces.multi_binary.MultiBinary(1),
-                #"holding_cube": spaces.multi_binary.MultiBinary(1),
+                "suction_on": spaces.multi_binary.MultiBinary(1),
+                "holding_cube": spaces.multi_binary.MultiBinary(1),
                 "joints": spaces.Box(np.array(min_joint_limits), np.array(max_joint_limits), dtype=np.float32),
                 "rel_pos": spaces.Box(self.REL_REGION_MIN, self.REL_REGION_MAX, shape=(3,), dtype=np.float32),
                 "ef_height": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
-                #"ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
+                "ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
             }
         )
 
