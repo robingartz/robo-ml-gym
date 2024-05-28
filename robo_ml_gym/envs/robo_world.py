@@ -143,13 +143,10 @@ class RoboWorldEnv(gym.Env):
         self.orn_line = None  # debug line between EF and target
 
         # used from outer scope
-        self.carry_over_score = 0
-        self.carry_has_cube = 0
-        self.carry_has_no_cube = 0
-        self.success_tally = 0
-        self.fail_tally = 0
-        self.dist_tally = 0
-        self.ef_angle_tally = 0
+        self.info = {
+            "carry_over_score": 0, "carry_has_cube": 0, "carry_has_no_cube": 0, "success_tally": 0,
+            "fail_tally": 0, "dist_tally": 0, "ef_angle_tally": 0, "cubes_stacked_tally": 0
+        }
 
         # unused
         self.constant_cube_spawn = constant_cube_spawn
@@ -208,7 +205,7 @@ class RoboWorldEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         """resets the robot position, cube position, score and gripper states"""
-        self.log_results()
+        #self.log_reset_results()
 
         # seeds self.np_random
         super().reset(seed=seed)
@@ -247,7 +244,6 @@ class RoboWorldEnv(gym.Env):
 
         self.resets += 1
         self.ep_step = 0
-        self.carry_over_score += int(self.score)
         self.score = 0
 
         return observation, info
@@ -299,7 +295,12 @@ class RoboWorldEnv(gym.Env):
                 reward))
         return s
 
-    def log_results(self):
+    def log_reset_results(self):
+        """write results to wandb"""
+        if self.wandb_enabled:
+            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
+
+    def log_avg_results(self):
         """write results to wandb"""
         if self.wandb_enabled:
             wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
@@ -645,26 +646,28 @@ class RoboWorldEnv(gym.Env):
     def _tally_successes_fails(self):
         # held cube tallies
         if self.held_cube is not None:
-            self.carry_has_cube += 1
+            self.info["carry_has_cube"] += 1
         else:
-            self.carry_has_no_cube += 1
+            self.info["carry_has_no_cube"] += 1
 
-        self.dist_tally += self.dist
-        self.ef_angle_tally += self.ef_angle
+        self.info["dist_tally"] += self.dist
+        self.info["ef_angle_tally"] += self.ef_angle
+        self.info["cubes_stacked_tally"] += self.cubes_stacked
+        self.info["carry_over_score"] += int(self.score)
 
         # tally success/failures
         if self.goal == "pickup":
-            if self.held_cube is not None: self.success_tally += 1
-            else: self.fail_tally += 1
+            if self.held_cube is not None: self.info["success_tally"] += 1
+            else: self.info["fail_tally"] += 1
         elif self.goal == "touch":
-            if self.held_cube is not None: self.success_tally += 1
-            else: self.fail_tally += 1
+            if self.held_cube is not None: self.info["success_tally"] += 1
+            else: self.info["fail_tally"] += 1
         elif self.goal == "phantom_touch":
-            if self.dist < self.pickup_tolerance: self.success_tally += 1
-            else: self.fail_tally += 1
+            if self.dist < self.pickup_tolerance: self.info["success_tally"] += 1
+            else: self.info["fail_tally"] += 1
         elif self.goal == "stack":
-            if self.cubes_stacked == self.cube_count: self.success_tally += 1
-            else: self.fail_tally += 1
+            if self.cubes_stacked == self.cube_count: self.info["success_tally"] += 1
+            else: self.info["fail_tally"] += 1
 
     def _reset_target_pos(self):
         if self.cube_count > 0:
@@ -762,5 +765,6 @@ class RoboWorldEnv(gym.Env):
             pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=idx, targetValue=joint_value, targetVelocity=0)
 
     def close(self):
+        #self.log_avg_results()
         if self.physics_client is not None:
             pybullet.disconnect()

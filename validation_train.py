@@ -53,11 +53,7 @@ if __name__ == '__main__':
     for r in range(5):
         utils.init_wandb()
         train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 8)
-        train_last_model(total_time_steps=100_000, max_episode_steps=240 * 8, learning_rate=3e-4)
-        for i in range(200):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
-        for i in range(10):
-            train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-4)
+        for i in range(220): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
         #for i in range(20): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
         #for i in range(20): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)

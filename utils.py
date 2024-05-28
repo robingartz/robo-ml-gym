@@ -57,17 +57,35 @@ def save_model(env, model, model_filename):
     env.unwrapped.set_fname(model_filename.strip(MODELS_DIR))
 
 
-def save_score(env, model, path, scores_path=SCORES_FILE):
+def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
     with open(scores_path, 'a') as f:
-        successes = env.unwrapped.success_tally
-        fails = env.unwrapped.fail_tally
+        info = env.unwrapped.info
+        successes = info["success_tally"]
+        fails = info["fail_tally"]
         fails = 1 if fails == 0 else fails
         runs = successes + fails
         success_rate = int(successes / runs * 100)
-        avg_score = int(env.unwrapped.carry_over_score / runs)
-        avg_dist = "%.2f" % (env.unwrapped.dist_tally / runs)
-        avg_ef_angle = int(env.unwrapped.ef_angle_tally / runs)
-        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate},{avg_dist},{avg_ef_angle}")
+        avg_score = int(info["carry_over_score"] / runs)
+        avg_dist = info["dist_tally"] / runs
+        avg_dist_str = "%.2f" % avg_dist
+        avg_ef_angle = int(info["ef_angle_tally"] / runs)
+        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate},"+
+                f"{avg_dist_str},{avg_ef_angle}")
+
+        if wandb_enabled:
+            wandb.log(
+                {
+                    #"time:", learning_rate,
+                    #"ETA":
+                    "avg_score": avg_score,
+                    "successes": successes,
+                    "fails": fails,
+                    "success_rate": success_rate,
+                    #"ef_cube_dist": avg_ef_cube_dist,
+                    #"cubes_stacked": avg_cubes_stacked,
+                    "avg_dist": avg_dist,
+                    "avg_ef_angle": avg_ef_angle
+                })
 
 
 def get_previous_model_names():
@@ -113,7 +131,7 @@ def run(env, model, label, total_time_steps, prev_steps=0):
 
     try:
         model.learn(total_timesteps=total_time_steps)
-        save_score(env, model, path)
+        save_score(env, model, path, True)
     except KeyboardInterrupt as exc:
         save_model(env, model, path)
         raise KeyboardInterrupt from exc
