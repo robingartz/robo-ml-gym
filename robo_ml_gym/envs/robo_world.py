@@ -28,7 +28,7 @@ BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
 CUBE_DIM = 0.05
 REL_MAX_DIS = 2.0
 # TODO: what MAX_JOINT_VEL to use?
-MAX_JOINT_VEL = 1.0
+MAX_JOINT_VEL = 3.0
 FLT_EPSILON = 0.0000001
 
 
@@ -59,21 +59,6 @@ class RoboWorldEnv(gym.Env):
         self.REL_REGION_MIN = np.array([-REL_MAX_DIS, -REL_MAX_DIS, -REL_MAX_DIS])
         self.REL_REGION_MAX = np.array([REL_MAX_DIS, REL_MAX_DIS, REL_MAX_DIS])
         self.robot_workspace = Region([0.4, 0, 0.380])  # [0.6, 0, 0.580], [0.4, 0, 0.580], [0.4, 0, 0.380]
-
-        # observations include joint angles, relative position between EF and target, and EF height
-        # TODO: update joint limits according to getJointInfo() values or actual values
-        self.observation_space = spaces.Dict(
-            {
-                "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),
-                "rel_pos": spaces.Box(self.REL_REGION_MIN, self.REL_REGION_MAX, shape=(3,), dtype=np.float32),
-                "height": spaces.Box(0.0, 2.0, shape=(1,), dtype=np.float32)
-            }
-        )
-
-        # we have 6 actions, corresponding to the angles of the six joints
-        # TODO: are we controlling velocity or position or torque of the joints?
-        self.action_space = spaces.Box(-MAX_JOINT_VEL, MAX_JOINT_VEL, shape=(6,), dtype=np.float32)
-        #self.action_space = spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32)
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # human or rgb_array
@@ -107,6 +92,10 @@ class RoboWorldEnv(gym.Env):
         self.score = 0
 
         # robot vars
+        self.urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
+        if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
+            self.urdf_path = "robo_ml_gym/" + self.urdf_path
+        min_joint_limits, max_joint_limits = self._get_joint_limits(self.urdf_path)
         self.robot_stopped = False
         self.control_mode = pybullet.VELOCITY_CONTROL if control_mode == "velocity" else pybullet.POSITION_CONTROL
         self.orientation = orientation
@@ -142,6 +131,20 @@ class RoboWorldEnv(gym.Env):
         self.picked_up_cube_count = 0
         self.orn_line = None  # debug line between EF and target
 
+        # observations include joint angles, relative position between EF and target, and EF height
+        # TODO: update joint limits according to getJointInfo() values or actual values
+        self.observation_space = spaces.Dict(
+            {
+                "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),
+                "rel_pos": spaces.Box(self.REL_REGION_MIN, self.REL_REGION_MAX, shape=(3,), dtype=np.float32),
+                "height": spaces.Box(0.0, 2.0, shape=(1,), dtype=np.float32)
+            }
+        )
+
+        # we have 6 actions, corresponding to the angles of the six joints
+        # TODO: are we controlling velocity or position or torque of the joints?
+        self.action_space = spaces.Box(min_joint_limits, max_joint_limits, shape=(6,), dtype=np.float32)
+
         # used from outer scope
         self.info = {
             "carry_over_score": 0, "carry_has_cube": 0, "carry_has_no_cube": 0, "success_tally": 0,
@@ -154,6 +157,11 @@ class RoboWorldEnv(gym.Env):
         self.prev_end_effector_pos = None
         self.just_picked_up_cube = False
         self.repeat_worst_performances = True
+
+    def _get_joint_limits(self, urdf_path: str):
+        min_limits = np.array([-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132])
+        max_limits = np.array([2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132])
+        return min_limits, max_limits
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
@@ -744,10 +752,7 @@ class RoboWorldEnv(gym.Env):
         else:
             raise RuntimeError(f"Invalid orientation: {self.orientation}")
 
-        urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
-        if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
-            urdf_path = "robo_ml_gym/" + urdf_path
-        self.robot_id = pybullet.loadURDF(urdf_path, basePosition=base_pos, baseOrientation=base_orn,
+        self.robot_id = pybullet.loadURDF(self.urdf_path, basePosition=base_pos, baseOrientation=base_orn,
                                           useFixedBase=1, flags=pybullet.URDF_MAINTAIN_LINK_ORDER)
         self.joints_count = pybullet.getNumJoints(self.robot_id)
         self._reset_robot_joint_values()
