@@ -124,6 +124,8 @@ class RoboWorldEnv(gym.Env):
 
         # cube vars
         self.cube_count = 4
+        if self.goal == "phantom_touch" or self.goal == "touch" or self.goal == "pickup":
+            self.cube_count = 1
         self.cubes = []
         self.cube_ids = []
         self.stack_pos = None
@@ -277,9 +279,11 @@ class RoboWorldEnv(gym.Env):
         height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
         #linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
         #if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
-        self.print_visual("target_pos: [%.2f %.2f %.2f], rel_pos: [%.3f %.3f %.3f], dist: %.2f, ef_z_angle: %2d, stacked: %d"
-                          % (self.target_pos[0], self.target_pos[1], self.target_pos[2],
-                             rel_pos[0], rel_pos[1], rel_pos[2], self.dist, self.ef_angle, self.cubes_stacked))
+        self.print_visual("target_pos: [%.2f %.2f %.2f], "
+                          % (self.target_pos[0], self.target_pos[1], self.target_pos[2]) +
+                          "rel_pos: [%.3f %.3f %.3f]" % (rel_pos[0], rel_pos[1], rel_pos[2]) +
+                          ", dist: %.2f, ef_z_angle: %2d, cube_held: %d, stacked: %d"
+                          % (self.dist, self.ef_angle, int(self.held_cube is not None), self.cubes_stacked))
 
         observations = {
             "joints": joint_positions,
@@ -300,10 +304,11 @@ class RoboWorldEnv(gym.Env):
         REWARD_PER_STACKED_CUBE = 0
 
         #reward = self._get_dist_reward()
-        reward = 1 / max(self.dist, 0.05 / 2)  # multiplicative inverse function with upper limit
-        reward = -400 * self.dist + 40
-        reward = -100 * self.dist + 10
-        reward = -10 * self.dist + 1
+        #reward = 1 / max(self.dist, 0.05 / 2)  # multiplicative inverse function with upper limit
+        #reward = -400 * self.dist + 40
+        reward = max(-120 * self.dist + 40, -1000 * self.dist + 50)
+        #reward = -100 * self.dist + 10
+        #reward = -10 * self.dist + 1
         #reward = max(0.0, -400 * self.dist + 40)
         #reward = max(0.0, -100 * self.dist + 10)
         #reward = max(0.0, -10 * self.dist + 1)
@@ -382,7 +387,7 @@ class RoboWorldEnv(gym.Env):
     def vector_angle(self, a, b):
         return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
 
-    def _update_dist(self, cube):
+    def _update_dist(self, unstacked_cube):
         # TODO: need self.dist for reward func
         # distance between EF to cube and stack pos
         self.ef_cube_dist = 1.0
@@ -390,23 +395,33 @@ class RoboWorldEnv(gym.Env):
 
         if self.cubes_stacked == self.cube_count and self.cube_count > 0:
             # all cubes are stacked
-            cube = self.cubes[0]
+            unstacked_cube = self.cubes[0]
 
-        if cube is not None:
-            # cube is held
-            cube_pos = np.array(cube.pos)
+        if unstacked_cube is not None:
+            cube_pos = np.array(unstacked_cube.pos)
             cube_pos[2] += CUBE_DIM / 2
             self.ef_cube_dist = abs(np.linalg.norm(cube_pos - self.ef_pos))
             self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
 
         # TODO: FIX ME
-        self.dist = self.ef_cube_dist
-        if cube is not None:
-            self.dist = self.cube_stack_dist
-
         if self.goal == "phantom_touch":
             self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
             self.dist = self.ef_cube_dist
+            self.cube_stack_dist = 1.0
+
+        elif self.goal == "touch":
+            self.dist = self.ef_cube_dist
+            self.cube_stack_dist = 1.0
+
+        elif self.goal == "pickup":
+            self.dist = self.ef_cube_dist
+            self.cube_stack_dist = 1.0
+
+        elif self.goal == "stack":
+            self.dist = self.ef_cube_dist
+            if self.held_cube is not None:
+                self.print_visual("setting: dist = cube_stack_dist")
+                self.dist = self.cube_stack_dist
 
         # angle between EF to target and the Z-axis
         vec = np.array(self.target_pos) - np.array(pybullet.getLinkState(self.robot_id, self.joints_count - 1)[0])
@@ -480,6 +495,7 @@ class RoboWorldEnv(gym.Env):
             linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
             ef_speed = abs(np.linalg.norm(np.array(linear_vel)))
             if ef_speed < 0.01:
+                self.print_visual("released cube")
                 # TODO: EF needs to go up / wait for cube to drop for a few ms before moving to next cube
                 self.held_cube = None
                 pybullet.removeConstraint(self.cube_constraint_id)
@@ -564,8 +580,11 @@ class RoboWorldEnv(gym.Env):
     def _update_target_pos(self, unstacked_cube):
         if self.goal == "pickup":
             self._process_cube_interactions()
-            self.target_pos = np.array(self.cubes[0].pos)
-            self.target_pos[2] += CUBE_DIM / 2
+            if self.held_cube is None:
+                self.target_pos = np.array(self.cubes[0].pos)
+                self.target_pos[2] += CUBE_DIM / 2
+            else:
+                self.target_pos = self.home_pos
 
         elif self.goal == "touch":
             self._process_cube_interactions()
