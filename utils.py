@@ -27,7 +27,7 @@ def init_wandb():
             "batch_size": 60,
             "n_epochs": 10,
             "robot_orientation": "vertical",
-            "goal": "phantom_touch",
+            "goal": "phantom_touch - for real (other set was stack)",
             "reward_func": "-12 * self.dist + 4",
             "obs_space": "suction_on (1), holding_cube (1), joints (6), rel_pos (3), ef_height (1), ef_speed (1)",
             "action_space": "suction_on (1), joints (6)",

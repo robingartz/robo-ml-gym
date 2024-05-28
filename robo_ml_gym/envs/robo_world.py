@@ -34,7 +34,7 @@ class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
-                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="stack",
+                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
                  control_mode="position", orientation="vertical", wandb_enabled=False):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
