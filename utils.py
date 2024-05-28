@@ -15,7 +15,7 @@ def init_wandb():
     wandb.init(
         # set the wandb project where this run will be logged
         # "robo-ml-gym",
-        project="test1",
+        project="robo-ml-gym",
 
         # track hyperparameters and run metadata
         config={

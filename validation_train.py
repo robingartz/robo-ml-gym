@@ -3,7 +3,8 @@ import gymnasium as gym
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import utils
 
-GROUP_PREFIX = "A19"
+os.environ["WANDB_MODE"] = "offline"
+GROUP_PREFIX = "B1"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 os.makedirs("models/verbose", exist_ok=True)
 
