@@ -34,7 +34,7 @@ class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
-                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
+                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="stack",
                  control_mode="position", orientation="vertical", wandb_enabled=False):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
@@ -328,8 +328,8 @@ class RoboWorldEnv(gym.Env):
         PENALTY_FOR_EF_GROUND_COL = 1
         PENALTY_FOR_CUBE_GROUND_COL = 1
         PENALTY_FOR_BELOW_TARGET_Z = 0
-        REWARD_FOR_HELD_CUBE = 2
-        REWARD_PER_STACKED_CUBE = 0
+        REWARD_FOR_HELD_CUBE = 0.5
+        REWARD_PER_STACKED_CUBE = 1
 
         #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
         #reward = 0.1 / (self.dist + 0.05 / 2)
@@ -338,9 +338,9 @@ class RoboWorldEnv(gym.Env):
         #if self.ef_pos[2] < 0:
         #    reward -= PENALTY_FOR_EF_GROUND_COL
 
-        #if self.held_cube is not None:
+        if self.held_cube is not None:
         #    #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
-        #    reward += REWARD_FOR_HELD_CUBE
+            reward += REWARD_FOR_HELD_CUBE
         #    #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
         #    #    reward -= PENALTY_FOR_CUBE_GROUND_COL
 
@@ -351,7 +351,7 @@ class RoboWorldEnv(gym.Env):
         #reward += max(0, (self.ef_angle - 90) / 90) * 0
         #reward += (self.ef_to_target_angle / 180) ** 2
 
-        #reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
 
         #if self.cubes_stacked == self.cube_count:
         #    ep_steps_remaining = self.ep_step_limit - self.ep_step
