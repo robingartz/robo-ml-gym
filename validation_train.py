@@ -17,7 +17,6 @@ def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8, learning_rate=
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
 
 
-
 def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3e-4, batch_size=60):
     env = gym.make(ENV_ROBOWORLD, max_episode_steps=ep_step_limit, ep_step_limit=ep_step_limit,
                    verbose=False, total_steps_limit=total_steps_limit, wandb_enabled=True)
@@ -26,7 +25,7 @@ def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
 
 
-def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant_cube_spawn=False, learning_rate=3e-4,
+def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4,
                      match_str=None):
     custom_objects = {'learning_rate': learning_rate}
     env = gym.make(ENV_ROBOWORLD,
