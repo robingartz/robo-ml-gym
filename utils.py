@@ -22,12 +22,12 @@ def init_wandb():
             "policy": "PPO",
             "learning_rate": 3e-4,
             "total_steps_limit": 100_000,
-            "ep_step_limit": 240 * 8,
+            "ep_step_limit": 240 * 16,
             "batch_size": 60,
             "n_epochs": 10,
             "robot_orientation": "vertical",
-            "goal": "phantom_stack",
-            "reward_func": "max(-120 * self.dist + 40, -1000 * self.dist + 50)"
+            "goal": "stack",
+            "reward_func": "-12 * self.dist + 4"
         }
     )
 

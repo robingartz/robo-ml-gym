@@ -135,12 +135,12 @@ class RoboWorldEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 # "cubes_stacked": spaces.multi_binary.MultiBinary(1),
-                "suction_on": spaces.multi_binary.MultiBinary(1),
-                "holding_cube": spaces.multi_binary.MultiBinary(1),
+                #"suction_on": spaces.multi_binary.MultiBinary(1),
+                #"holding_cube": spaces.multi_binary.MultiBinary(1),
                 "joints": spaces.Box(np.array(min_joint_limits), np.array(max_joint_limits), dtype=np.float32),
                 "rel_pos": spaces.Box(self.REL_REGION_MIN, self.REL_REGION_MAX, shape=(3,), dtype=np.float32),
                 "ef_height": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
-                "ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
+                #"ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
             }
         )
 
@@ -295,7 +295,7 @@ class RoboWorldEnv(gym.Env):
         ef_speed = np.array([min(0.99, abs(np.linalg.norm(np.array(vel))))]).astype("float32")
         self.print_visual("ef_speed: %.4f" % ef_speed[0])
 
-        observations = {
+        available_observations = {
             "suction_on": np.array([int(self.suction_on)], dtype=int),
             "holding_cube": np.array([holding_cube], dtype=int),
             "joints": joint_positions,
@@ -303,6 +303,10 @@ class RoboWorldEnv(gym.Env):
             "ef_height": ef_height,
             "ef_speed": ef_speed
         }
+        observations = {}
+        # select only the required observations
+        for key in self.observation_space.keys():
+            observations[key] = available_observations[key]
 
         return observations
 
