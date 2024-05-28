@@ -149,6 +149,7 @@ class RoboWorldEnv(gym.Env):
         suction_on_limits = [-1.0, 1.0]
         low_limits = np.array([suction_on_limits[0]] + min_joint_limits)
         high_limits = np.array([suction_on_limits[1]] + max_joint_limits)
+        print(low_limits)
         self.action_space = spaces.Box(np.array(low_limits), np.array(high_limits), dtype=np.float32)
 
         # used from outer scope
@@ -777,8 +778,8 @@ class RoboWorldEnv(gym.Env):
 
     def _get_joint_limits(self, urdf_path: str):
         # TODO: load limits from urdf file instead of using hardcoded values
-        min_limits = np.array([-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132])
-        max_limits = np.array([2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132])
+        min_limits = [-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132]
+        max_limits = [2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132]
         return min_limits, max_limits
 
     def _reset_robot_joint_values(self):
