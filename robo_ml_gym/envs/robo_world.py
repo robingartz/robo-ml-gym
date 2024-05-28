@@ -37,7 +37,7 @@ class RoboWorldEnv(gym.Env):
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
                  total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
-                 orientation="vertical", wandb_enabled=False):
+                 control_mode="position", orientation="vertical", wandb_enabled=False):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
         to stack a number of cubes at the target_pos.
@@ -50,6 +50,7 @@ class RoboWorldEnv(gym.Env):
         :param fname_app:
         :param constant_cube_spawn:
         :param goal: str "pickup" | "stack" | "touch" | "phantom_touch" | "place"
+        :param control_mode: str "position" | "velocity"
         :param orientation: str "vertical" | "horizontal"
         :param wandb_enabled: bool
         """
@@ -107,6 +108,7 @@ class RoboWorldEnv(gym.Env):
 
         # robot vars
         self.robot_stopped = False
+        self.control_mode = pybullet.VELOCITY_CONTROL if control_mode == "velocity" else pybullet.POSITION_CONTROL
         self.orientation = orientation
         self.robot_id = None
         self.joints_count = None
@@ -578,19 +580,17 @@ class RoboWorldEnv(gym.Env):
     def _process_action(self, action):
         """ move robot joints with either position control or velocity control """
         for joint_index in range(0, 0+self.joints_count-1):
-            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
-                                           jointIndex=joint_index,
-                                           controlMode=pybullet.POSITION_CONTROL,
-                                           targetPosition=action[joint_index])
-            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
-            #                               jointIndex=joint_index,
-            #                               controlMode=pybullet.VELOCITY_CONTROL,
-            #                               targetVelocity=action[joint_index])
             if self.robot_stopped:
-                pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
-                                               jointIndex=joint_index,
-                                               controlMode=pybullet.VELOCITY_CONTROL,
-                                               targetVelocity=0.0)
+                self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.POSITION_CONTROL, 0.0)
+            else:
+                self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, action[joint_index])
+
+    @staticmethod
+    def _set_joint_motor_control2(body_id, joint_index, control_mode, action):
+        pybullet.setJointMotorControl2(bodyUniqueId=body_id,
+                                       jointIndex=joint_index,
+                                       controlMode=control_mode,
+                                       targetPosition=action)
 
     def _process_terminated_state(self, terminated, reward):
         if terminated:
