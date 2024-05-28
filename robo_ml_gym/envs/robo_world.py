@@ -106,6 +106,7 @@ class RoboWorldEnv(gym.Env):
         self.score = 0
 
         # robot vars
+        self.robot_stopped = False
         self.orientation = orientation
         self.robot_id = None
         self.joints_count = None
@@ -190,6 +191,8 @@ class RoboWorldEnv(gym.Env):
         info = self._get_info()
         #reward = self._process_terminated_state(terminated, reward)
 
+        self.print_visual(self._get_step_info_str(observation, reward))
+
         if self.render_mode == "human":
             self._render_frame()
 
@@ -200,11 +203,6 @@ class RoboWorldEnv(gym.Env):
             self._print_info()
 
         return observation, reward, terminated, False, info
-
-    def log_results(self):
-        """save results to wandb"""
-        if self.wandb_enabled:
-            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
 
     def reset(self, seed=None, options=None):
         """resets the robot position, cube position, score and gripper states"""
@@ -279,11 +277,6 @@ class RoboWorldEnv(gym.Env):
         height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
         #linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
         #if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
-        self.print_visual("target_pos: [%.2f %.2f %.2f], "
-                          % (self.target_pos[0], self.target_pos[1], self.target_pos[2]) +
-                          "rel_pos: [%.3f %.3f %.3f]" % (rel_pos[0], rel_pos[1], rel_pos[2]) +
-                          ", dist: %.2f, ef_z_angle: %2d, cube_held: %d, stacked: %d"
-                          % (self.dist, self.ef_angle, int(self.held_cube is not None), self.cubes_stacked))
 
         observations = {
             "joints": joint_positions,
@@ -293,6 +286,21 @@ class RoboWorldEnv(gym.Env):
         # TODO: add "stacked_count" to obs
 
         return observations
+
+    def _get_step_info_str(self, observation, reward):
+        target_pos = self.target_pos
+        rel_pos = observation["rel_pos"]
+        s = ("target_pos: [%.2f %.2f %.2f], " % (target_pos[0], target_pos[1], target_pos[2]) +
+             "rel_pos: [%.3f %.3f %.3f], " % (rel_pos[0], rel_pos[1], rel_pos[2]) +
+             "dist: %.2f, ef_z_angle: %3d, cube_held: %d, stacked: %d, reward: %03d"
+             % (self.dist, self.ef_angle, int(self.held_cube is not None), self.cubes_stacked,
+                reward))
+        return s
+
+    def log_results(self):
+        """write results to wandb"""
+        if self.wandb_enabled:
+            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
 
     def _get_reward(self):
         """reward function: the closer the EF is to the target, the higher the reward"""
@@ -461,12 +469,18 @@ class RoboWorldEnv(gym.Env):
         key_next = ord('n')
         key_verbose = ord('q')
         key_reset = ord('r')
+        key_stop = ord('f')
+        key_help = ord('h')
         if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
             self.reset()
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
             self.visual_verbose = not self.visual_verbose
         if key_reset in keys and keys[key_reset] & pybullet.KEY_WAS_TRIGGERED:
             self._reset_robot_joint_values()
+        if key_stop in keys and keys[key_stop] & pybullet.KEY_WAS_TRIGGERED:
+            self.robot_stopped = not self.robot_stopped
+        if key_help in keys and keys[key_help] & pybullet.KEY_WAS_TRIGGERED:
+            print("n: next simulation\nq: verbose\nr: reset robot position\nf: freeze robot\nh: print help commands")
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
@@ -551,19 +565,32 @@ class RoboWorldEnv(gym.Env):
 
     def _check_cubes_stacked(self):
         self.cubes_stacked = 0
+        # stack_pos is at the top of the cube, so get the centre position instead
+        required_cube_pos = self.stack_pos - np.array([0.0, 0.0, CUBE_DIM/2])
         for idx, cube in enumerate(self.cubes):
-            if self._xy_close(cube.pos, self.stack_pos, self.stack_tolerance):
+            if (self._xy_close(cube.pos, required_cube_pos, self.stack_tolerance) and
+                    abs(np.linalg.norm(cube.pos - required_cube_pos)) < CUBE_DIM/3):  # TODO: change div 3 as required
                 self.cubes_stacked = idx + 1
             else:
                 break
+            required_cube_pos = cube.pos + np.array([0.0, 0.0, CUBE_DIM])
 
     def _process_action(self, action):
         """ move robot joints with either position control or velocity control """
         for joint_index in range(0, 0+self.joints_count-1):
-            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-                                           controlMode=pybullet.POSITION_CONTROL, targetPosition=action[joint_index])
-            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id, jointIndex=joint_index,
-            #                               controlMode=pybullet.VELOCITY_CONTROL, targetVelocity=action[joint_index])
+            pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
+                                           jointIndex=joint_index,
+                                           controlMode=pybullet.POSITION_CONTROL,
+                                           targetPosition=action[joint_index])
+            #pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
+            #                               jointIndex=joint_index,
+            #                               controlMode=pybullet.VELOCITY_CONTROL,
+            #                               targetVelocity=action[joint_index])
+            if self.robot_stopped:
+                pybullet.setJointMotorControl2(bodyUniqueId=self.robot_id,
+                                               jointIndex=joint_index,
+                                               controlMode=pybullet.VELOCITY_CONTROL,
+                                               targetVelocity=0.0)
 
     def _process_terminated_state(self, terminated, reward):
         if terminated:
