@@ -21,13 +21,16 @@ def init_wandb():
         config={
             "policy": "PPO",
             "learning_rate": 3e-4,
+            "learning_rates": "10M: 3e-4, 10M: 1e-4, 10M: 5e-5",
             "total_steps_limit": 100_000,
-            "ep_step_limit": 240 * 16,
+            "ep_step_limit": 240 * 8,
             "batch_size": 60,
             "n_epochs": 10,
             "robot_orientation": "vertical",
-            "goal": "stack",
-            "reward_func": "-12 * self.dist + 4"
+            "goal": "phantom_touch",
+            "reward_func": "-12 * self.dist + 4",
+            "obs_space": "joints (6), rel_pos (3), ef_height (1)",
+            "action_space": "suction_on (1), joints (6)",
         }
     )
 

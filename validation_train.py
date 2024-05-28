@@ -4,7 +4,7 @@ from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-rep
 import utils
 
 #os.environ["WANDB_MODE"] = "offline"
-GROUP_PREFIX = "B2"
+GROUP_PREFIX = "B3"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 os.makedirs("models/verbose", exist_ok=True)
 
@@ -42,10 +42,10 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning
 if __name__ == '__main__':
     for r in range(5):
         utils.init_wandb()
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 16)
-        for i in range(90): train_last_model(total_time_steps=100_000, max_episode_steps=240*16, learning_rate=3e-4)
-        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*16, learning_rate=1e-4)
-        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*16, learning_rate=5e-5)
+        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 8)
+        for i in range(90): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
+        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
+        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=5e-6)
         utils.close_wandb()
