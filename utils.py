@@ -3,10 +3,37 @@ import os
 import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
+import wandb
 
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = "models/.last_model_name.txt"
 SCORES_FILE = "scores.txt"
+
+
+def init_wandb():
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        # "robo-ml-gym",
+        project="test1",
+
+        # track hyperparameters and run metadata
+        config={
+            "policy": "PPO",
+            "learning_rate": 3e-4,
+            "total_steps_limit": 100_000,
+            "ep_step_limit": 240 * 8,
+            "batch_size": 60,
+            "n_epochs": 10,
+            "robot_orientation": "vertical",
+            "goal": "phantom_stack",
+            "reward_func": "max(-120 * self.dist + 40, -1000 * self.dist + 50)"
+        }
+    )
+
+
+def close_wandb():
+    wandb.finish()
 
 
 def get_model_name(model, total_time_steps, file_label):

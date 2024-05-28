@@ -10,7 +10,7 @@ os.makedirs("models/verbose", exist_ok=True)
 
 def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8, learning_rate=3e-4, batch_size=60, n_epochs=10):
     env = gym.make(ENV_ROBOWORLD, max_episode_steps=ep_step_limit, ep_step_limit=ep_step_limit,
-                   verbose=False, total_steps_limit=total_steps_limit)
+                   verbose=False, total_steps_limit=total_steps_limit, wandb_enabled=True)
     model = PPO("MultiInputPolicy", env, learning_rate=learning_rate, verbose=1, device="auto", n_steps=ep_step_limit,
                 batch_size=batch_size, n_epochs=n_epochs)
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
@@ -19,7 +19,7 @@ def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8, learning_rate=
 
 def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3e-4, batch_size=60):
     env = gym.make(ENV_ROBOWORLD, max_episode_steps=ep_step_limit, ep_step_limit=ep_step_limit,
-                   verbose=False, total_steps_limit=total_steps_limit)
+                   verbose=False, total_steps_limit=total_steps_limit, wandb_enabled=True)
     model = SAC("MultiInputPolicy", env, learning_rate=learning_rate, verbose=1, device="auto",
                 batch_size=batch_size)
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_steps_limit, prev_steps=0)
@@ -33,7 +33,7 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, constant
                    ep_step_limit=max_episode_steps,
                    verbose=False,
                    total_steps_limit=total_time_steps,
-                   constant_cube_spawn=constant_cube_spawn)
+                   wandb_enabled=True)
 
     model, prev_steps = utils.get_previous_model(env, custom_objects, match_str)
     utils.run(env=env, model=model, label=GROUP_PREFIX, total_time_steps=total_time_steps, prev_steps=prev_steps)
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     #model = "models/PPO-v9000k-A16-240526_064133"
 
     for r in range(5):
+        utils.init_wandb()
         train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 8)
         train_last_model(total_time_steps=100_000, max_episode_steps=240 * 8, learning_rate=3e-4)
         for i in range(200):
@@ -61,5 +62,6 @@ if __name__ == '__main__':
         #for i in range(20): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)
         #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=5e-6)
+        utils.close_wandb()
     for i in range(200):
-        train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=1e-5)
+        train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-5)

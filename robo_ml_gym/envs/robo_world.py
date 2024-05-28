@@ -36,7 +36,7 @@ class RoboWorldEnv(gym.Env):
 
     def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
                  total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
-                 orientation="vertical"):
+                 orientation="vertical", wandb_enabled=False):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
         to stack a number of cubes at the target_pos.
@@ -196,8 +196,15 @@ class RoboWorldEnv(gym.Env):
 
         return observation, reward, terminated, False, info
 
+    def log_results(self):
+        """save results to wandb"""
+        if self.wandb_enabled:
+            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
+
     def reset(self, seed=None, options=None):
         """resets the robot position, cube position, score and gripper states"""
+        self.log_results()
+
         # seeds self.np_random
         super().reset(seed=seed)
 
