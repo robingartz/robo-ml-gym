@@ -330,15 +330,9 @@ class RoboWorldEnv(gym.Env):
         REWARD_FOR_HELD_CUBE = 2
         REWARD_PER_STACKED_CUBE = 0
 
-        #reward = self._get_dist_reward()
-        #reward = 1 / max(self.dist, 0.05 / 2)  # multiplicative inverse function with upper limit
-        #reward = -400 * self.dist + 40
-        reward = max(-120 * self.dist + 40, -1000 * self.dist + 50)
-        #reward = -100 * self.dist + 10
-        #reward = -10 * self.dist + 1
-        #reward = max(0.0, -400 * self.dist + 40)
-        #reward = max(0.0, -100 * self.dist + 10)
-        #reward = max(0.0, -10 * self.dist + 1)
+        #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
+        #reward = 0.1 / (self.dist + 0.05 / 2)
+        reward = -12 * self.dist + 4
 
         #if self.ef_pos[2] < 0:
         #    reward -= PENALTY_FOR_EF_GROUND_COL
