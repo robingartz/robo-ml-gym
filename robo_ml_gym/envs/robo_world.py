@@ -266,7 +266,7 @@ class RoboWorldEnv(gym.Env):
 
         self.init_state = pybullet.saveState()
 
-    def _get_obs(self):
+    def _get_obs(self) -> dict:
         """returns the observation space: array of joint positions and the distance between EF and target"""
         # observations
         joint_positions = np.array([info[0] for info in pybullet.getJointStates(
@@ -289,7 +289,7 @@ class RoboWorldEnv(gym.Env):
 
         return observations
 
-    def _get_step_info_str(self, observation, reward):
+    def _get_step_info_str(self, observation: dict, reward: float) -> str:
         target_pos = self.target_pos
         rel_pos = observation["rel_pos"]
         s = ("target_pos: [%.2f %.2f %.2f], " % (target_pos[0], target_pos[1], target_pos[2]) +
@@ -304,7 +304,7 @@ class RoboWorldEnv(gym.Env):
         if self.wandb_enabled:
             wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
 
-    def _get_reward(self):
+    def _get_reward(self) -> float:
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides!!!
         PENALTY_FOR_EF_GROUND_COL = 1
@@ -351,18 +351,18 @@ class RoboWorldEnv(gym.Env):
         self.prev_dist = self.dist
         return reward
 
-    def set_fname(self, fname):
+    def set_fname(self, fname: str):
         self.fname = fname
         self.verbose_file = f"models/verbose/{self.fname}.txt"
 
-    def print_verbose(self, s):
+    def print_verbose(self, s: str):
         if self.verbose:
             print(s)
         if self.save_verbose:
             with open(self.verbose_file, 'a') as f:
                 f.write(s + '\n')
 
-    def print_visual(self, _str):
+    def print_visual(self, _str: str):
         if self.render_mode == "human":
             if self.visual_verbose:
                 print(_str)
@@ -394,10 +394,16 @@ class RoboWorldEnv(gym.Env):
             time_remaining = int(total_steps_remaining * (time_elapsed / max(1, self.total_steps)))
         return time_remaining
 
-    def vector_angle(self, a, b):
+    @staticmethod
+    def point_dist(a: np.array, b: np.array):
+        """ The absolute distance between two points in space """
+        return abs(np.linalg.norm(a - b))
+
+    @staticmethod
+    def vector_angle(a: np.array, b: np.array):
         return math.acos(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))) * 180 / np.pi
 
-    def _update_dist(self, unstacked_cube):
+    def _update_dist(self, unstacked_cube: Cube):
         # TODO: need self.dist for reward func
         # distance between EF to cube and stack pos
         self.ef_cube_dist = 1.0
@@ -489,7 +495,7 @@ class RoboWorldEnv(gym.Env):
         return self.ef_angle > 135
         #return self.ef_to_target_angle > 135  # 135 / 180 * np.pi = 2.356
 
-    def _pickup_cube(self, cube):
+    def _pickup_cube(self, cube: Cube):
         # TODO: allow picking up from an angle
         #pybullet.rayTest()
         #pybullet.getBasePositionAndOrientation()
@@ -586,13 +592,12 @@ class RoboWorldEnv(gym.Env):
                 self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, action[joint_index])
 
     @staticmethod
-    def _set_joint_motor_control2(body_id, joint_index, control_mode, action):
-        pybullet.setJointMotorControl2(bodyUniqueId=body_id,
-                                       jointIndex=joint_index,
-                                       controlMode=control_mode,
-                                       targetPosition=action)
+    def _set_joint_motor_control2(body_id: int, joint_index: int, control_mode: int, action: float):
+        """ Set a single joint motor control mode and desired target value. Provides args. """
+        pybullet.setJointMotorControl2(bodyUniqueId=body_id, jointIndex=joint_index,
+                                       controlMode=control_mode, targetPosition=action)
 
-    def _process_terminated_state(self, terminated, reward):
+    def _process_terminated_state(self, terminated: bool, reward: float):
         if terminated:
             if self.ep_step_limit is not None:
                 reward += (1 / (0.05 / 2)) * 1.2 * 240 * (self.ep_step_limit - self.total_steps)
@@ -604,7 +609,7 @@ class RoboWorldEnv(gym.Env):
             self.score += 1000
         return reward
 
-    def _update_target_pos(self, unstacked_cube):
+    def _update_target_pos(self, unstacked_cube: Cube):
         if self.goal == "pickup":
             self._process_cube_interactions()
             if self.held_cube is None:
