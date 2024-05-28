@@ -51,6 +51,7 @@ class RoboWorldEnv(gym.Env):
         :param constant_cube_spawn:
         :param goal: str "pickup" | "stack" | "touch" | "phantom_touch" | "place"
         :param orientation: str "vertical" | "horizontal"
+        :param wandb_enabled: bool
         """
 
         # relative min/max
@@ -81,6 +82,7 @@ class RoboWorldEnv(gym.Env):
         self.verbose_text = ""
         self.v_txt = "_"
         self.verbose_file = f"models/verbose/{int(time.time())}-{fname_app}.txt"
+        self.wandb_enabled = wandb_enabled
 
         # misc
         self.physics_client = None
