@@ -155,7 +155,8 @@ class RoboWorldEnv(gym.Env):
         # used from outer scope
         self.info = {
             "carry_over_score": 0, "carry_has_cube": 0, "carry_has_no_cube": 0, "success_tally": 0,
-            "fail_tally": 0, "dist_tally": 0, "ef_angle_tally": 0, "cubes_stacked_tally": 0
+            "fail_tally": 0, "dist_tally": 0, "ef_angle_tally": 0, "cubes_stacked_tally": 0,
+            "held_cube_tally": 0, "held_no_cube_tally": 0
         }
 
         # unused
@@ -179,6 +180,9 @@ class RoboWorldEnv(gym.Env):
             cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
         self._check_cubes_stacked()
         unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
+
+        self.info["held_cube_tally"] += 0 if self.held_cube is None else 1
+        self.info["held_no_cube_tally"] += 1 if self.held_cube is None else 0
 
         self.prev_end_effector_pos = self.ef_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
@@ -328,8 +332,8 @@ class RoboWorldEnv(gym.Env):
         PENALTY_FOR_EF_GROUND_COL = 1
         PENALTY_FOR_CUBE_GROUND_COL = 1
         PENALTY_FOR_BELOW_TARGET_Z = 0
-        REWARD_FOR_HELD_CUBE = 0.5
-        REWARD_PER_STACKED_CUBE = 1
+        REWARD_FOR_HELD_CUBE = 4
+        REWARD_PER_STACKED_CUBE = 5
 
         #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
         #reward = 0.1 / (self.dist + 0.05 / 2)

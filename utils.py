@@ -69,7 +69,8 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
         avg_dist = info["dist_tally"] / runs
         avg_dist_str = "%.2f" % avg_dist
         avg_ef_angle = int(info["ef_angle_tally"] / runs)
-        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate},"+
+        held_cube_percent = info["held_cube_tally"] / (info["held_cube_tally"] + info["held_no_cube_tally"])
+        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}," +
                 f"{avg_dist_str},{avg_ef_angle}")
 
         if wandb_enabled:
@@ -84,7 +85,8 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
                     #"ef_cube_dist": avg_ef_cube_dist,
                     #"cubes_stacked": avg_cubes_stacked,
                     "avg_dist": avg_dist,
-                    "avg_ef_angle": avg_ef_angle
+                    "avg_ef_angle": avg_ef_angle,
+                    "held_cube_percent": held_cube_percent
                 })
 
 
