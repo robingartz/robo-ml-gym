@@ -26,9 +26,7 @@ BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.273-0.273)  # box on ground
 #BOX_POS = (BOX_WIDTH + 0.42, 0.0, 0.273)  # box above ground and closer to robot
 #BOX_POS = (BOX_WIDTH+0.52, 0.0, 0.12)  # box above ground and closer to robot
 CUBE_DIM = 0.05
-REL_MAX_DIS = 2.0
-# TODO: what MAX_JOINT_VEL to use?
-MAX_JOINT_VEL = 3.0
+REL_MAX_DIS = 1.0
 FLT_EPSILON = 0.0000001
 
 
@@ -110,6 +108,7 @@ class RoboWorldEnv(gym.Env):
         self.dist = 1.0
         self.ef_cube_dist = 1.0
         self.cube_stack_dist = 1.0
+        self.suction_on = False
 
         self.init_ef_cube_dist = 1.0
         self.init_cube_stack_dist = 1.0
@@ -135,15 +134,28 @@ class RoboWorldEnv(gym.Env):
         # TODO: update joint limits according to getJointInfo() values or actual values
         self.observation_space = spaces.Dict(
             {
-                "joints": spaces.Box(-np.pi*2, np.pi*2, shape=(6,), dtype=np.float32),
+                # "cubes_stacked": spaces.multi_binary.MultiBinary(1),
+                "suction_on": spaces.multi_binary.MultiBinary(1),
+                "holding_cube": spaces.multi_binary.MultiBinary(1),
+                "joints": spaces.Box(np.array(min_joint_limits), np.array(max_joint_limits), dtype=np.float32),
                 "rel_pos": spaces.Box(self.REL_REGION_MIN, self.REL_REGION_MAX, shape=(3,), dtype=np.float32),
-                "height": spaces.Box(0.0, 2.0, shape=(1,), dtype=np.float32)
+                "ef_height": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
+                "ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
             }
         )
 
-        # we have 6 actions, corresponding to the angles of the six joints
-        # TODO: are we controlling velocity or position or torque of the joints?
-        self.action_space = spaces.Box(min_joint_limits, max_joint_limits, shape=(6,), dtype=np.float32)
+        # 1 EF suction action ([-1,0]: off, [0, 1]: on)
+        # + 6 joint actions (individual limits). The control method can be set to velocity or position control
+        low_limits = np.array([-1.0] + min_joint_limits)
+        high_limits = np.array([+1.0] + max_joint_limits)
+        self.action_space = spaces.Box(np.array(low_limits), np.array(high_limits), dtype=np.float32)
+        #self.action_space = spaces.Dict(
+        #    {
+        #        #"suction_on": spaces.multi_binary.MultiBinary(1),
+        #        #"suction_on": spaces.MultiBinary(1),
+        #        "joints": spaces.Box(min_joint_limits, max_joint_limits, dtype=np.float32)
+        #    }
+        #)
 
         # used from outer scope
         self.info = {
@@ -158,13 +170,9 @@ class RoboWorldEnv(gym.Env):
         self.just_picked_up_cube = False
         self.repeat_worst_performances = True
 
-    def _get_joint_limits(self, urdf_path: str):
-        min_limits = np.array([-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132])
-        max_limits = np.array([2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132])
-        return min_limits, max_limits
-
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
+        self.print_visual(action)
         self.print_visual(f"actions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]" % (
             action[0], action[1], action[2], action[3], action[4], action[5]))
         self._process_action(action)
@@ -280,16 +288,22 @@ class RoboWorldEnv(gym.Env):
         rel_pos = self.ef_pos - pos
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
-        height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 2.0)], dtype=np.float32)
+        ef_height = np.array([min(max(self.ef_pos[2] - 0.0, 0.0), 1.0)], dtype=np.float32)
+        holding_cube = int(self.held_cube is not None)
+        _, _, _, _, _, _, vel, _ = pybullet.getLinkState(
+            bodyUniqueId=self.robot_id, linkIndex=7-1, computeLinkVelocity=1)
         #linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
-        #if abs(np.linalg.norm(np.array(linear_vel))) < 0.3:
+        ef_speed = np.array([min(0.99, abs(np.linalg.norm(np.array(vel))))]).astype("float32")
+        self.print_visual("ef_speed: %.4f" % ef_speed[0])
 
         observations = {
+            "suction_on": np.array([int(self.suction_on)], dtype=int),
+            "holding_cube": np.array([holding_cube], dtype=int),
             "joints": joint_positions,
             "rel_pos": rel_pos,
-            "height": height
+            "ef_height": ef_height,
+            "ef_speed": ef_speed
         }
-        # TODO: add "stacked_count" to obs
 
         return observations
 
@@ -756,6 +770,12 @@ class RoboWorldEnv(gym.Env):
                                           useFixedBase=1, flags=pybullet.URDF_MAINTAIN_LINK_ORDER)
         self.joints_count = pybullet.getNumJoints(self.robot_id)
         self._reset_robot_joint_values()
+
+    def _get_joint_limits(self, urdf_path: str):
+        # TODO: load limits from urdf file instead of using hardcoded values
+        min_limits = np.array([-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132])
+        max_limits = np.array([2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132])
+        return min_limits, max_limits
 
     def _reset_robot_joint_values(self):
         """ sets the initial joint starting positions """
