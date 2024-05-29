@@ -6,7 +6,7 @@ import utils
 
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 os.makedirs("models/verbose", exist_ok=True)
-# disable wandb logging on my local machine
+# disable wandb logging on my local Windows machine
 if sys.platform == "win32":
     os.environ["WANDB_MODE"] = "offline"
 
@@ -41,12 +41,16 @@ def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning
 if __name__ == '__main__':
     for r in range(5):
         utils.init_wandb()
-        train_new_ppo(total_steps_limit=100_000, ep_step_limit=240 * 8)
-        for i in range(90): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4)
-        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=1e-4)
-        for i in range(100): train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=5e-5)
-        #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=1e-5)
-        #for i in range(20): train_last_model(total_time_steps=200_000, max_episode_steps=240*12, learning_rate=5e-6)
+
+        # get config vars
+        _total_steps_limit = utils.CONFIG["policy"]["total_steps_limit"]
+        _ep_step_limit = utils.CONFIG["policy"]["ep_step_limit"]
+        _learning_rate = utils.CONFIG["policy"]["learning_rate"]
+        _learning_rate_10M = utils.CONFIG["policy"]["learning_rate_10M"]
+        _learning_rate_20M = utils.CONFIG["policy"]["learning_rate_20M"]
+
+        train_new_ppo(total_steps_limit=_total_steps_limit, ep_step_limit=_ep_step_limit)
+        for i in range(90): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)
+        for i in range(100): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_10M)
+        for i in range(100): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
         utils.close_wandb()
-    #for i in range(200):
-    #    train_last_model(total_time_steps=100_000, max_episode_steps=240*12, learning_rate=3e-5)

@@ -1,12 +1,16 @@
 
-load_model: none
-match_str: none
+# not implemented:
+#load_model: none
+#match_str: none
 
 policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
   policy: "PPO"
   learning_rate: 3e-4
-  learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
+  learning_rate_10M: 1e-4
+  learning_rate_20M: 5e-5
+  # not implemented:
+  #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
   total_steps_limit: 10_000
   total_time_steps: 10_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
