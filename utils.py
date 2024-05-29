@@ -6,7 +6,8 @@ from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-rep
 import wandb
 import config
 
-GROUP_PREFIX = "B4"
+GROUP_PREFIX = "B5"
+GROUP = GROUP_PREFIX
 CONFIG_FILE = "config.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = "models/.last_model_name.txt"
@@ -18,8 +19,8 @@ def init_wandb():
     # start a new wandb run to track this script
     wandb.init(
         # set the wandb project where this run will be logged: robo-ml-gym
-        project="wandb_test",
-        group=GROUP_PREFIX,
+        project="robo-ml-gym",
+        group=GROUP,
         # track hyperparameters and run metadata
         config=CONFIG
     )
@@ -63,7 +64,8 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
         avg_dist_str = "%.2f" % avg_dist
         avg_ef_angle = int(info["ef_angle_tally"] / runs)
         total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
-        held_cube_percent = info["held_cube_step_tally"] / total_steps * 100
+        held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
+        held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
         f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}," +
                 f"{avg_dist_str},{avg_ef_angle}")
 
@@ -72,15 +74,16 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
                 {
                     #"time:", learning_rate,
                     #"ETA":
-                    "avg_score": avg_score,
-                    "successes": successes,
-                    "fails": fails,
-                    "success_rate": success_rate,
+                    "Avg Score": avg_score,
+                    "Successes": successes,
+                    "Fails": fails,
+                    "Success Rate": success_rate,
                     #"ef_cube_dist": avg_ef_cube_dist,
                     #"cubes_stacked": avg_cubes_stacked,
-                    "avg_dist": avg_dist,
-                    "avg_ef_angle": avg_ef_angle,
-                    "held_cube_percent": held_cube_percent
+                    "Avg Distance": avg_dist,
+                    "Avg EF Angle": avg_ef_angle,
+                    "Held Cube Time Percentage": held_cube_percent_time,
+                    "Held Cube Rate": held_cube_rate
                 })
 
 
