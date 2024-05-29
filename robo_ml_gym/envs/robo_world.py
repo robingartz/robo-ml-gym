@@ -554,7 +554,7 @@ class RoboWorldEnv(gym.Env):
     def _process_cube_interactions(self):
         """pickup cube if EF close"""
         if self.held_cube is None:
-            if self.config["env"]["obs_space"]["suction_on"]:
+            if self.config["env"]["action_space"]["suction_on"]:
                 # requires the suction_on action to be true
                 if self.suction_on:
                     self._try_pickup_cube(self.get_first_unstacked_cube())
