@@ -554,8 +554,14 @@ class RoboWorldEnv(gym.Env):
     def _process_cube_interactions(self):
         """pickup cube if EF close"""
         if self.held_cube is None:
-            # pickup cube and move towards the stack_pos
-            self._try_pickup_cube(self.get_first_unstacked_cube())
+            if self.config["env"]["obs_space"]["suction_on"]:
+                # requires the suction_on action to be true
+                if self.suction_on:
+                    self._try_pickup_cube(self.get_first_unstacked_cube())
+            else:
+                # automatically pick up the cube
+                # pickup cube and move towards the stack_pos
+                self._try_pickup_cube(self.get_first_unstacked_cube())
 
     def _process_cube_interactions_pickup_drop(self):
         """the robot's action will pick up/release the cube (if possible)"""
@@ -672,7 +678,10 @@ class RoboWorldEnv(gym.Env):
             pass
 
         elif self.goal == "stack":
-            self._process_cube_interactions_pickup_drop()
+            if self.config["env"]["obs_space"]["suction_on"]:
+                self._process_cube_interactions_pickup_drop()
+            else:
+                self._process_cube_interactions_pickup_drop_auto()
             # TODO: the arm is moving too much when it releases (particularly when human helps)
 
             if unstacked_cube is not None:
