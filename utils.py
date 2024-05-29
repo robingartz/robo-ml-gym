@@ -113,8 +113,8 @@ def get_previous_model(env, custom_objects=None, match_str=None):
                 if model_name in last_model_name:
                     model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
-        except Exception as error:
-            print(error)
+        except Exception as exc:
+            print(exc)
             pass
 
     return None, 0
