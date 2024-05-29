@@ -33,25 +33,21 @@ FLT_EPSILON = 0.0000001
 class RoboWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 14}
 
-    def __init__(self, render_mode=None, verbose=True, save_verbose=True, ep_step_limit=None,
-                 total_steps_limit=None, fname_app="_", constant_cube_spawn=False, goal="phantom_touch",
-                 control_mode="position", orientation="vertical", wandb_enabled=False):
+    def __init__(self, config, render_mode=None, verbose=True, save_verbose=True, fname_app="_", wandb_enabled=False):
         """
         PyBullet environment with the ABB IRB120 robot. The robot's end goal is
         to stack a number of cubes at the target_pos.
 
+        :param config: dict contains all configuration settings for the run
         :param render_mode:
         :param verbose:
         :param save_verbose:
-        :param ep_step_limit:
-        :param total_steps_limit:
         :param fname_app:
-        :param constant_cube_spawn:
-        :param goal: str "pickup" | "stack" | "touch" | "phantom_touch" | "place"
-        :param control_mode: str "position" | "velocity"
-        :param orientation: str "vertical" | "horizontal"
         :param wandb_enabled: bool
         """
+
+        self.config = config
+        self.config_reward = self.config["env"]["reward"]
 
         # relative min/max
         self.REL_REGION_MIN = np.array([-REL_MAX_DIS, -REL_MAX_DIS, -REL_MAX_DIS])
@@ -71,8 +67,6 @@ class RoboWorldEnv(gym.Env):
         # misc
         self.physics_client = None
         self.debug_points = []
-        # run physics sim for n steps, then give back control to agent
-        #self.total_steps_between_interaction = 1
 
         # used to estimate training ETA
         self.start_time = time.time()
@@ -80,13 +74,16 @@ class RoboWorldEnv(gym.Env):
         # step/reset counters
         self.resets = 0  # the number of resets; e.g. [0 to 100]
         self.ep_step = 0  # reset to 0 at the end of every episode; e.g. [0 to 240]
-        self.ep_step_limit = ep_step_limit  # an episode will reset at this point; e.g. 240
+        self.ep_step_limit = self.config["policy"]["ep_step_limit"]  # an episode will reset at this point; e.g. 240
         self.total_steps = 0  # the total number of steps taken in all episodes; e.g. [0 to 200_000]
         # total_steps_limit: training is completed once total_steps >= total_steps_limit; e.g. 200_000
-        self.total_steps_limit = total_steps_limit if total_steps_limit is not None else 0
+        if self.config["policy"]["total_steps_limit"] is not None:
+            self.total_steps_limit = self.config["policy"]["total_steps_limit"]
+        else:
+            self.total_steps_limit = 0
 
         # scoring
-        self.goal = goal
+        self.goal = self.config["env"]["goal"]
         self.score = 0
 
         # robot vars
@@ -95,8 +92,11 @@ class RoboWorldEnv(gym.Env):
             self.urdf_path = "robo_ml_gym/" + self.urdf_path
         min_joint_limits, max_joint_limits = self._get_joint_limits(self.urdf_path)
         self.robot_stopped = False
-        self.control_mode = pybullet.VELOCITY_CONTROL if control_mode == "velocity" else pybullet.POSITION_CONTROL
-        self.orientation = orientation
+        if self.config["env"]["robot_control_mode"] == "velocity":
+            self.control_mode = pybullet.VELOCITY_CONTROL
+        else:
+            self.control_mode = pybullet.POSITION_CONTROL
+        self.orientation = self.config["env"]["robot_orientation"]
         self.robot_id = None
         self.joints_count = None
         self.ef_pos = None  # end effector position (x, y, z)
@@ -114,7 +114,7 @@ class RoboWorldEnv(gym.Env):
         self.init_cube_stack_dist = 1.0
 
         # cube vars
-        self.cube_count = 4
+        self.cube_count = self.config["env"]["cube_count"]
         if self.goal == "phantom_touch" or self.goal == "touch" or self.goal == "pickup":
             self.cube_count = 1
         self.cubes = []
@@ -131,9 +131,7 @@ class RoboWorldEnv(gym.Env):
         self.orn_line = None  # debug line between EF and target
 
         # observations include joint angles, relative position between EF and target, and EF height
-        # TODO: update joint limits according to getJointInfo() values or actual values
-        self.observation_space = spaces.Dict(
-            {
+        self.available_observation_space = {
                 # "cubes_stacked": spaces.multi_binary.MultiBinary(1),
                 "suction_on": spaces.multi_binary.MultiBinary(1),
                 "holding_cube": spaces.multi_binary.MultiBinary(1),
@@ -142,28 +140,41 @@ class RoboWorldEnv(gym.Env):
                 "ef_height": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
                 "ef_speed": spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32)
             }
-        )
+        observation_space = {}
+        for observation, enabled in self.config["env"]["obs_space"].items():
+            if enabled:
+                observation_space[observation] = self.available_observation_space[observation]
+        self.observation_space = spaces.Dict(observation_space)
 
-        # 1 EF suction action ([-1,0]: off, [0, 1]: on)
-        # + 6 joint actions (individual limits). The control method can be set to velocity or position control
-        suction_on_limits = [-1.0, 1.0]
-        low_limits = np.array([suction_on_limits[0]] + min_joint_limits)
-        high_limits = np.array([suction_on_limits[1]] + max_joint_limits)
-        print(low_limits)
+        low_limits = []
+        high_limits = []
+        if self.config["env"]["action_space"]["suction_on"]:
+            # 1 EF suction action ([-1,0]: off, [0, 1]: on)
+            suction_on_limits = [-1.0, 1.0]
+            low_limits += [suction_on_limits[0]]
+            high_limits += [suction_on_limits[1]]
+        if self.config["env"]["action_space"]["joints"]:
+            # + 6 joint actions (individual limits). The control method can be set to velocity or position control
+            low_limits += min_joint_limits
+            high_limits += max_joint_limits
+        low_limits = np.array(low_limits)
+        high_limits = np.array(high_limits)
         self.action_space = spaces.Box(np.array(low_limits), np.array(high_limits), dtype=np.float32)
 
         # used from outer scope
         self.info = {
-            "carry_over_score": 0, "carry_has_cube": 0, "carry_has_no_cube": 0, "success_tally": 0,
+            "carry_over_score": 0, "held_cube_tally": 0, "held_no_cube_tally": 0, "success_tally": 0,
             "fail_tally": 0, "dist_tally": 0, "ef_angle_tally": 0, "cubes_stacked_tally": 0,
-            "held_cube_tally": 0, "held_no_cube_tally": 0
+            "held_cube_step_tally": 0, "held_no_cube_step_tally": 0, "pickup_tally": 0
         }
 
         # unused
-        self.constant_cube_spawn = constant_cube_spawn
+        self.constant_cube_spawn = self.config["env"]["constant_cube_spawn"]
+        self.repeat_worst_performances = self.config["env"]["repeat_worst_performances"]
+        # run physics sim for n steps, then give back control to agent
+        self.total_steps_between_interaction = self.config["env"]["total_steps_between_interaction"]
         self.prev_dist = self.dist
         self.prev_end_effector_pos = None
-        self.repeat_worst_performances = True
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
@@ -181,8 +192,8 @@ class RoboWorldEnv(gym.Env):
         self._check_cubes_stacked()
         unstacked_cube = self.get_first_unstacked_cube()  # TODO: this is the held cube
 
-        self.info["held_cube_tally"] += 0 if self.held_cube is None else 1
-        self.info["held_no_cube_tally"] += 1 if self.held_cube is None else 0
+        self.info["held_cube_step_tally"] += 0 if self.held_cube is None else 1
+        self.info["held_no_cube_step_tally"] += 1 if self.held_cube is None else 0
 
         self.prev_end_effector_pos = self.ef_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
@@ -333,40 +344,34 @@ class RoboWorldEnv(gym.Env):
     def _get_reward(self) -> float:
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides!!!
-        PENALTY_FOR_EF_GROUND_COL = 1
-        PENALTY_FOR_CUBE_GROUND_COL = 1
-        PENALTY_FOR_BELOW_TARGET_Z = 0
-        REWARD_FOR_HELD_CUBE = 4
-        REWARD_PER_STACKED_CUBE = 5
 
-        #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
-        #reward = 0.1 / (self.dist + 0.05 / 2)
         reward = -12 * self.dist + 4
+        #reward = 0.1 / (self.dist + 0.05 / 2)
+        #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
 
-        #if self.ef_pos[2] < 0:
-        #    reward -= PENALTY_FOR_EF_GROUND_COL
+        if self.ef_pos[2] < 0:
+            reward += self.config_reward["reward_for_ef_ground_col"]
 
         if self.held_cube is not None:
-        #    #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
-            reward += REWARD_FOR_HELD_CUBE
-        #    #if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
-        #    #    reward -= PENALTY_FOR_CUBE_GROUND_COL
+            #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
+            reward += self.config_reward["reward_per_held_cube"]
+            if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
+                reward += self.config_reward["reward_for_cube_ground_col"]
 
-        #if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
-        #    reward -= PENALTY_FOR_BELOW_TARGET_Z
+        if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
+            reward += self.config_reward["reward_for_ef_below_target_z"]
 
         # reward more vertical EF
-        #reward += max(0, (self.ef_angle - 90) / 90) * 0
-        #reward += (self.ef_to_target_angle / 180) ** 2
+        if self.config_reward["reward_ef_vertical"]:
+            reward += max(0, (self.ef_angle - 90.0) / 90.0) * self.config_reward["reward_ef_vertical_scale"]
 
-        reward += REWARD_PER_STACKED_CUBE * self.cubes_stacked
+        reward += self.config_reward["reward_per_stacked_cube"] * self.cubes_stacked
 
         #if self.cubes_stacked == self.cube_count:
         #    ep_steps_remaining = self.ep_step_limit - self.ep_step
         #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
         #    reward = max_reward_per_step * ep_steps_remaining
 
-        #reward = self._get_dist_reward()
         self.score += reward
         self.prev_dist = self.dist
         return reward
@@ -617,11 +622,14 @@ class RoboWorldEnv(gym.Env):
     def _process_action(self, action):
         """ move robot joints with either position control or velocity control """
         # suction_on is False if < 0.0, True if >= 0.0
-        self.suction_on = action[0] >= 0.0
+        if self.config["env"]["action_space"]["suction_on"]:
+            self.suction_on = action[0] >= 0.0
+            joint_action = action[1:]
+        else:
+            joint_action = action
 
-        # joint actions
-        joint_action = action[1:]
-        for joint_index in range(0, 0+self.joints_count-1):
+        # joint actions, the last joint is not a real joint (it is the EF attachment)
+        for joint_index in range(0, self.joints_count-1):
             if self.robot_stopped:
                 self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.POSITION_CONTROL, 0.0)
             else:
@@ -681,9 +689,9 @@ class RoboWorldEnv(gym.Env):
     def _tally_successes_fails(self):
         # held cube tallies
         if self.held_cube is not None:
-            self.info["carry_has_cube"] += 1
+            self.info["held_cube_tally"] += 1
         else:
-            self.info["carry_has_no_cube"] += 1
+            self.info["held_no_cube_tally"] += 1
 
         self.info["dist_tally"] += self.dist
         self.info["ef_angle_tally"] += self.ef_angle

@@ -12,9 +12,8 @@ class Run:
             last = True
         sims = 100_000
 
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=ep_step_limit, render_mode="human",
-                       verbose=True, save_verbose=False, constant_cube_spawn=self.constant_cube_spawn, goal="stack",
-                       orientation="vertical")
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", config=utils.CONFIG,
+                       max_episode_steps=ep_step_limit, render_mode="human", verbose=True, save_verbose=False)
 
         # load model
         model = None
@@ -37,8 +36,8 @@ class Run:
     def run_without_model(self):
         sims = 18
         ep_step_limit = 240 * 4
-        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", ep_step_limit=ep_step_limit, render_mode="human",
-                       save_verbose=False)
+        env = gym.make("robo_ml_gym:robo_ml_gym/RoboWorld-v0", config=utils.CONFIG,
+                       max_episode_steps=ep_step_limit, render_mode="human", save_verbose=False)
 
         observation, info = env.reset()
         for sim in range(sims):

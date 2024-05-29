@@ -4,34 +4,24 @@ import re
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import wandb
+import config
 
+GROUP_PREFIX = "B4"
+CONFIG_FILE = "config.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = "models/.last_model_name.txt"
 SCORES_FILE = "scores.txt"
+CONFIG = config.get_config()
 
 
 def init_wandb():
     # start a new wandb run to track this script
     wandb.init(
-        # set the wandb project where this run will be logged
-        # "robo-ml-gym",
-        project="robo-ml-gym",
-
+        # set the wandb project where this run will be logged: robo-ml-gym
+        project="wandb_test",
+        group=GROUP_PREFIX,
         # track hyperparameters and run metadata
-        config={
-            "policy": "PPO",
-            "learning_rate": 3e-4,
-            "learning_rates": "10M: 3e-4, 10M: 1e-4, 10M: 5e-5",
-            "total_steps_limit": 100_000,
-            "ep_step_limit": 240 * 8,
-            "batch_size": 60,
-            "n_epochs": 10,
-            "robot_orientation": "vertical",
-            "goal": "phantom_touch - for real (other set was stack)",
-            "reward_func": "-12 * self.dist + 4",
-            "obs_space": "suction_on (1), holding_cube (1), joints (6), rel_pos (3), ef_height (1), ef_speed (1)",
-            "action_space": "suction_on (1), joints (6)",
-        }
+        config=CONFIG
     )
 
 
@@ -72,7 +62,8 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
         avg_dist = info["dist_tally"] / runs
         avg_dist_str = "%.2f" % avg_dist
         avg_ef_angle = int(info["ef_angle_tally"] / runs)
-        held_cube_percent = info["held_cube_tally"] / (info["held_cube_tally"] + info["held_no_cube_tally"])
+        total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
+        held_cube_percent = info["held_cube_step_tally"] / total_steps * 100
         f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}," +
                 f"{avg_dist_str},{avg_ef_angle}")
 
