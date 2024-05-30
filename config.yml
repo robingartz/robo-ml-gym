@@ -16,8 +16,8 @@ policy:
   learning_rate_20M: 5e-5
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
-  total_steps_limit: 10_000
-  total_time_steps: 10_000
+  total_steps_limit: 100_000
+  total_time_steps: 100_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
   max_episode_steps: 1920
   ep_step_limit: 1920
