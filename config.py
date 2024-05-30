@@ -12,6 +12,9 @@ def get_config(path="config.yml") -> dict:
 
     with open(parsed_args.config, 'r', encoding="UTF-8") as config_file:
         config = yaml.safe_load(config_file)
+
+    if config.get("meta", None) is None:
+        config["meta"] = {}
     config["meta"]["pc_name"] = gethostname()
 
     return config

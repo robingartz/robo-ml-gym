@@ -11,14 +11,25 @@ import config
 WANDB_PROJECT = "robo-ml-gym"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 CONFIG_FILE = "config.yml"
+CONFIG_RND_FILE = "config_rnd.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
-SCORES_FILE = "scores.txt"
-#CONFIG = config.get_config()
-CONFIG = config.get_rnd_config()
-GROUP_PREFIX = CONFIG["meta"]["group"]
-GROUP = GROUP_PREFIX
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
+SCORES_FILE = "scores.txt"
+
+CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
+try:
+    if os.environ["ROBO_GYM_VISUALISE"] == "1":
+        CONFIG_FILE = "config_visual.yml"
+        CONFIG = config.get_config(CONFIG_FILE)
+        print(CONFIG)
+except KeyError:
+    pass
+
+GROUP_PREFIX = "NA"
+if CONFIG["meta"].get("group", None) is not None:
+    GROUP_PREFIX = CONFIG["meta"]["group"]
+GROUP = GROUP_PREFIX
 # silence logger
 logger = configure()
 logger.set_level(level=50)
@@ -133,7 +144,7 @@ def get_previous_model(env, custom_objects=None, match_str=None):
                 if model_name in last_model_name:
                     model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
-        except Exception as exc:
+        except KeyboardInterrupt as exc:
             print(exc)
             pass
 

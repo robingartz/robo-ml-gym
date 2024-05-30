@@ -1,3 +1,5 @@
+import os
+os.environ["ROBO_GYM_VISUALISE"] = "1"
 import gymnasium as gym
 import utils
 
