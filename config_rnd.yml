@@ -7,7 +7,9 @@
 #match_str: none
 
 meta:
-  version_group: false
+  group: "B6"
+  # pc_name is set by config.py
+  pc_name: null
 
 policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values

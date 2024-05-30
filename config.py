@@ -1,5 +1,6 @@
 import argparse
 import random
+from socket import gethostname
 import yaml
 
 
@@ -11,6 +12,7 @@ def get_config(path="config.yml") -> dict:
 
     with open(parsed_args.config, 'r', encoding="UTF-8") as config_file:
         config = yaml.safe_load(config_file)
+    config["meta"]["pc_name"] = gethostname()
 
     return config
 
