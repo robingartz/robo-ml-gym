@@ -80,6 +80,7 @@ def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
                 f"{avg_dist_str},{avg_ef_angle}")
 
         if wandb_enabled:
+            # TODO: record SB3 metrics: approx_kl, clip_fraction, entropy_loss etc
             wandb.log(
                 {
                     #"time:", learning_rate,

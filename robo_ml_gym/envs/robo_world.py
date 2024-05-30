@@ -90,12 +90,12 @@ class RoboWorldEnv(gym.Env):
         self.urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
         if "robo_ml_gym" not in os.listdir():  # if cwd is 1 level up, then prepend gym-examples/ dir
             self.urdf_path = "robo_ml_gym/" + self.urdf_path
-        min_joint_limits, max_joint_limits = self._get_joint_limits(self.urdf_path)
         self.robot_stopped = False
         if self.config["env"]["robot_control_mode"] == "velocity":
             self.control_mode = pybullet.VELOCITY_CONTROL
         else:
             self.control_mode = pybullet.POSITION_CONTROL
+        min_joint_limits, max_joint_limits = self._get_joint_limits(self.urdf_path)
         self.orientation = self.config["env"]["robot_orientation"]
         self.robot_id = None
         self.joints_count = None
@@ -804,8 +804,14 @@ class RoboWorldEnv(gym.Env):
 
     def _get_joint_limits(self, urdf_path: str):
         # TODO: load limits from urdf file instead of using hardcoded values
-        min_limits = [-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132]
-        max_limits = [2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132]
+        if self.control_mode == pybullet.POSITION_CONTROL:
+            # position limits
+            min_limits = [-2.87979, -1.91986, -1.91986, -2.79253, -2.094395, -6.98132]
+            max_limits = [2.87979, 1.91986, 1.22173, 2.79253, 2.094395, 6.98132]
+        else:
+            # velocity limits
+            min_limits = [-4.36332, -4.36332, -4.36332, -5.58505, -5.58505, -7.33038]
+            max_limits = [4.36332, 4.36332, 4.36332, 5.58505, 5.58505, 7.33038]
         return min_limits, max_limits
 
     def _reset_robot_joint_values(self):
