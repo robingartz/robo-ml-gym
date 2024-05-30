@@ -526,11 +526,12 @@ class RoboWorldEnv(gym.Env):
         #pybullet.getBasePositionAndOrientation()
         #pybullet.getQuaternionFromEuler()
         #pybullet.getAxisAngleFromQuaternion()
-        if self.ef_cube_dist < self.pickup_tolerance:
-            if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
-                if self._is_ef_angle_vertical():
-                    if self.goal == "pickup" or self.goal == "stack" or self.goal == "touch":
-                        self._attach_cube(cube)
+        if cube is not None:
+            if self.ef_cube_dist < self.pickup_tolerance:
+                if self._xy_close(cube.pos, self.ef_pos, self.pickup_xy_tolerance):
+                    if self._is_ef_angle_vertical():
+                        if self.goal == "pickup" or self.goal == "stack" or self.goal == "touch":
+                            self._attach_cube(cube)
 
     def _attach_cube(self, cube):
         self.held_cube = cube
