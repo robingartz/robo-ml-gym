@@ -1,0 +1,63 @@
+# use this config file to randomise selected parameters
+# false: keep the original parameter
+# set a list of choices where a random choice will become the new parameter
+
+# not implemented:
+#load_model: none
+#match_str: none
+
+meta:
+  version_group: false
+
+policy:
+  # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
+  policy: false
+  learning_rate: false
+  learning_rate_10M: false
+  learning_rate_20M: false
+  # not implemented:
+  #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
+  total_steps_limit: false
+  total_time_steps: false
+  # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
+  max_episode_steps: false
+  ep_step_limit: false
+  batch_size: false
+  n_epochs: false
+
+env:
+  # phantom_touch | touch | pickup | stack
+  goal: false
+  # vertical | horizontal
+  robot_orientation: ["vertical", "horizontal"]
+  # position | velocity
+  robot_control_mode: ["position", "velocity"]
+  cube_count: false
+  # not implemented:
+  constant_cube_spawn: false
+  repeat_worst_performances: false
+  total_steps_between_interaction: false
+
+  obs_space:
+    suction_on: [false, true]
+    holding_cube: [false, true]
+    joints: [false, true]
+    rel_pos: false
+    ef_height: [false, true]
+    ef_speed: [false, true]
+
+  action_space:
+    suction_on: false
+    joints: false
+
+  reward:
+    # 0 | -12 * self.dist + 4 | 0.1 / (self.dist + 0.05 / 2) | max(-12 * self.dist + 4, -60 * self.dist + 5)
+    dist_reward_func: false
+    # false: 0 | true: max(0, (self.ef_angle - 90) / 90) * reward_ef_vertical_scale
+    reward_ef_vertical: [false, true]
+    reward_ef_vertical_scale: [0.0, 1.0, 3.0, 5.0]
+    reward_per_held_cube: [0.0, 1.0, 3.0, 5.0]
+    reward_per_stacked_cube: [0.0, 2.0, 5.0, 10.0]
+    reward_for_ef_ground_col: [0.0, -1.0, -3.0, -5.0, -10.0]
+    reward_for_cube_ground_col: [0.0, -1.0, -3.0]
+    reward_for_ef_below_target_z: [0.0, -1.0, -3.0]

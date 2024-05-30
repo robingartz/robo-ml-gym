@@ -1,25 +1,35 @@
 from datetime import datetime
 import os
 import re
+import sys
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import wandb
 import config
 
-GROUP_PREFIX = "B5"
-GROUP = GROUP_PREFIX
+WANDB_PROJECT = "robo-ml-gym"
+ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 CONFIG_FILE = "config.yml"
 MODELS_DIR = "models/"
-LAST_MODEL_FILE = "models/.last_model_name.txt"
+LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 SCORES_FILE = "scores.txt"
-CONFIG = config.get_config()
+#CONFIG = config.get_config()
+CONFIG = config.get_rnd_config()
+GROUP_PREFIX = CONFIG["meta"]["group"]
+GROUP = GROUP_PREFIX
+os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
+
+# disable wandb logging on my local Windows machine
+if sys.platform == "win32":
+    WANDB_PROJECT = "test-project"
+    #os.environ["WANDB_MODE"] = "offline"
 
 
 def init_wandb():
     # start a new wandb run to track this script
     wandb.init(
         # set the wandb project where this run will be logged: robo-ml-gym
-        project="robo-ml-gym",
+        project=WANDB_PROJECT,
         group=GROUP,
         # track hyperparameters and run metadata
         config=CONFIG

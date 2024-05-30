@@ -1,18 +1,10 @@
-import os
-import sys
 import gymnasium as gym
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 import utils
 
-ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
-os.makedirs("models/verbose", exist_ok=True)
-# disable wandb logging on my local Windows machine
-if sys.platform == "win32":
-    os.environ["WANDB_MODE"] = "offline"
-
 
 def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8, learning_rate=3e-4, batch_size=60, n_epochs=10):
-    env = gym.make(ENV_ROBOWORLD, config=utils.CONFIG, max_episode_steps=ep_step_limit,
+    env = gym.make(utils.ENV_ROBOWORLD, config=utils.CONFIG, max_episode_steps=ep_step_limit,
                    verbose=False, wandb_enabled=True)
     model = PPO("MultiInputPolicy", env, learning_rate=learning_rate, verbose=1, device="auto",
                 n_steps=ep_step_limit, batch_size=batch_size, n_epochs=n_epochs)
@@ -20,7 +12,7 @@ def train_new_ppo(total_steps_limit=100_000, ep_step_limit=240*8, learning_rate=
 
 
 def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3e-4, batch_size=60):
-    env = gym.make(ENV_ROBOWORLD, config=utils.CONFIG, max_episode_steps=ep_step_limit,
+    env = gym.make(utils.ENV_ROBOWORLD, config=utils.CONFIG, max_episode_steps=ep_step_limit,
                    verbose=False, wandb_enabled=True)
     model = SAC("MultiInputPolicy", env, learning_rate=learning_rate, verbose=1, device="auto",
                 batch_size=batch_size)
@@ -29,7 +21,7 @@ def train_new_sac(total_steps_limit=20_000, ep_step_limit=240*8, learning_rate=3
 
 def train_last_model(total_time_steps=100_000, max_episode_steps=240*8, learning_rate=3e-4, match_str=None):
     custom_objects = {'learning_rate': learning_rate}
-    env = gym.make(ENV_ROBOWORLD,
+    env = gym.make(utils.ENV_ROBOWORLD,
                    config=utils.CONFIG,
                    max_episode_steps=max_episode_steps,
                    verbose=False,
@@ -52,5 +44,5 @@ if __name__ == '__main__':
         train_new_ppo(total_steps_limit=_total_steps_limit, ep_step_limit=_ep_step_limit)
         for i in range(90): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)
         for i in range(100): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_10M)
-        for i in range(100): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
+        for i in range(20): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
         utils.close_wandb()
