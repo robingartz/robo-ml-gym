@@ -4,6 +4,7 @@ import re
 import sys
 import time
 from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
+from stable_baselines3.common.logger import configure
 import wandb
 import config
 
@@ -18,6 +19,11 @@ CONFIG = config.get_rnd_config()
 GROUP_PREFIX = CONFIG["meta"]["group"]
 GROUP = GROUP_PREFIX
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
+# silence logger
+logger = configure()
+logger.set_level(level=50)
+# TODO: save the random seed used
+
 
 # disable wandb logging on my local Windows machine
 if sys.platform == "win32":
@@ -138,6 +144,7 @@ def run(env, model, label, total_time_steps, prev_steps=0):
     #model = PPO("MultiInputPolicy", env, n_steps=20000, batch_size=128, n_epochs=20, verbose=1, learning_rate=0.0005, device="auto")  # promising
     name, path = get_model_name(model, prev_steps+total_time_steps, label)
     env.unwrapped.set_fname(name)  # ensure info logs have the same name as the model
+    model.set_logger(logger)
 
     try:
         model.learn(total_timesteps=total_time_steps)
