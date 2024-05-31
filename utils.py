@@ -92,7 +92,7 @@ def get_statistics(env, model, path):
     total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
     held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
     # avg_stack_dist is the avg of all (4) cubes from the stack position averaged across all time and sims
-    avg_stack_dist = "%.2f" % info["avg_stack_dist"] / total_steps
+    avg_stack_dist = "%.2f" % info["avg_stack_dist_tally"] / total_steps
     avg_cubes_stacked = info["cubes_stacked_tally"] / runs
     held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
 
