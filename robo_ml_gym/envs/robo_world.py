@@ -12,10 +12,9 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 
-from robo_ml_gym.envs.cube import Cube
-from robo_ml_gym.envs.region import Region
-from robo_ml_gym.envs import reward_utils
-from robo_ml_gym.envs import env_utils
+from robo_ml_gym.utils import reward_utils, env_utils
+from robo_ml_gym.utils.cube import Cube
+from robo_ml_gym.utils.region import Region
 
 
 # box dimensions (the area the cube can spawn within)
