@@ -14,9 +14,11 @@ meta:
 policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
   policy: false
-  learning_rate: false
-  learning_rate_10M: false
-  learning_rate_20M: false
+  learning_rate: 3e-4
+  learning_rate_5M: 1e-4
+  learning_rate_10M: 5e-5
+  learning_rate_15M: 1e-5
+  learning_rate_20M: 5e-6
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
   total_steps_limit: false
@@ -33,7 +35,7 @@ env:
   # vertical | horizontal
   robot_orientation: ["vertical", "horizontal"]
   # position | velocity
-  robot_control_mode: ["position", "velocity"]
+  robot_control_mode: false
   cube_count: false
   # not implemented:
   constant_cube_spawn: false
@@ -44,22 +46,22 @@ env:
     suction_on: [false, true]
     holding_cube: [false, true]
     joints: [false, true]
-    rel_pos: false
+    rel_pos: [true]
     ef_height: [false, true]
     ef_speed: [false, true]
 
   action_space:
-    suction_on: false
-    joints: false
+    suction_on: [true]
+    joints: [true]
 
   reward:
     # 0 | -12 * self.dist + 4 | 0.1 / (self.dist + 0.05 / 2) | max(-12 * self.dist + 4, -60 * self.dist + 5)
     dist_reward_func: false
     # false: 0 | true: max(0, (self.ef_angle - 90) / 90) * reward_ef_vertical_scale
-    reward_ef_vertical: [false, true]
-    reward_ef_vertical_scale: [0.0, 1.0, 3.0, 5.0]
-    reward_per_held_cube: [0.0, 1.0, 3.0, 5.0]
-    reward_per_stacked_cube: [0.0, 2.0, 5.0, 10.0]
-    reward_for_ef_ground_col: [0.0, -1.0, -3.0, -5.0, -10.0]
-    reward_for_cube_ground_col: [0.0, -1.0, -3.0]
-    reward_for_ef_below_target_z: [0.0, -1.0, -3.0]
+    reward_ef_vertical: [true]
+    reward_ef_vertical_scale: [0.0, 1.0]
+    reward_per_held_cube: [5.0, 8.0]
+    reward_per_stacked_cube: [10.0, 20.0]
+    reward_for_ef_ground_col: [-1.0]
+    reward_for_cube_ground_col: [0.0, -1.0]
+    reward_for_ef_below_target_z: [0.0, -1.0]

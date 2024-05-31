@@ -178,7 +178,6 @@ class RoboWorldEnv(gym.Env):
 
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
-        self.print_visual(action)
         self.print_visual(f"actions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]" % (
             action[0], action[1], action[2], action[3], action[4], action[5]))
         self._process_action(action)
@@ -304,7 +303,7 @@ class RoboWorldEnv(gym.Env):
             bodyUniqueId=self.robot_id, linkIndex=7-1, computeLinkVelocity=1)
         #linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
         ef_speed = np.array([min(0.99, abs(np.linalg.norm(np.array(vel))))]).astype("float32")
-        self.print_visual("ef_speed: %.4f" % ef_speed[0])
+        #self.print_visual("ef_speed: %.4f" % ef_speed[0])
 
         available_observations = {
             "suction_on": np.array([int(self.suction_on)], dtype=int),
@@ -326,7 +325,7 @@ class RoboWorldEnv(gym.Env):
         rel_pos = observation["rel_pos"]
         s = ("target_pos: [%.2f %.2f %.2f], " % (target_pos[0], target_pos[1], target_pos[2]) +
              "rel_pos: [%.3f %.3f %.3f], " % (rel_pos[0], rel_pos[1], rel_pos[2]) +
-             "dist: %.2f, ef_z_angle: %3d, cube_held: %d, stacked: %d, reward: %03d"
+             "dist: %.2f, ef_z_angle: %3d, cube_held: %d, stacked: %d, reward: %.2f"
              % (self.dist, self.ef_angle, int(self.held_cube is not None), self.cubes_stacked,
                 reward))
         return s

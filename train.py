@@ -38,11 +38,15 @@ if __name__ == '__main__':
         _total_steps_limit = utils.CONFIG["policy"]["total_steps_limit"]
         _ep_step_limit = utils.CONFIG["policy"]["ep_step_limit"]
         _learning_rate = float(utils.CONFIG["policy"]["learning_rate"])
+        _learning_rate_5M = float(utils.CONFIG["policy"]["learning_rate_5M"])
         _learning_rate_10M = float(utils.CONFIG["policy"]["learning_rate_10M"])
+        _learning_rate_15M = float(utils.CONFIG["policy"]["learning_rate_15M"])
         _learning_rate_20M = float(utils.CONFIG["policy"]["learning_rate_20M"])
 
         train_new_ppo(total_steps_limit=_total_steps_limit, ep_step_limit=_ep_step_limit)
-        for i in range(90): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)
-        for i in range(100): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_10M)
+        for i in range(49): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)
+        for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_5M)
+        for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_10M)
+        for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_15M)
         for i in range(20): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
         utils.close_wandb()

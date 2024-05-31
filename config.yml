@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "B7"
+  group: "B8"
   # pc_name is set by config.py
   pc_name: null
 
@@ -12,8 +12,10 @@ policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
   policy: "PPO"
   learning_rate: 3e-4
-  learning_rate_10M: 1e-4
-  learning_rate_20M: 5e-5
+  learning_rate_5M: 1e-4
+  learning_rate_10M: 5e-5
+  learning_rate_15M: 1e-5
+  learning_rate_20M: 5e-6
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
   total_steps_limit: 100_000
@@ -26,7 +28,7 @@ policy:
 
 env:
   # phantom_touch | touch | pickup | stack
-  goal: "pickup"
+  goal: "stack"
   # vertical | horizontal
   robot_orientation: "vertical"
   # position | velocity
