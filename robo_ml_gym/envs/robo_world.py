@@ -176,8 +176,13 @@ class RoboWorldEnv(gym.Env):
         self.prev_dist = self.dist
         self.prev_end_effector_pos = None
 
+        self.force_action = False
+
     def step(self, action):
         """move joints, step physics sim, check gripper, return obs, reward, termination"""
+        if self.force_action:
+            action[1] = 1.9
+            action[2] = -1.9
         self.print_visual(f"actions: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f]" % (
             action[0], action[1], action[2], action[3], action[4], action[5]))
         self._process_action(action)
@@ -499,11 +504,15 @@ class RoboWorldEnv(gym.Env):
     def _process_keyboard_events(self):
         """process keyboard event"""
         keys = pybullet.getKeyboardEvents()
+        key_help = ord('h')
         key_next = ord('n')
         key_verbose = ord('q')
         key_reset = ord('r')
         key_stop = ord('f')
-        key_help = ord('h')
+        key_move = ord('m')
+        if key_help in keys and keys[key_help] & pybullet.KEY_WAS_TRIGGERED:
+            print("h: print help commands\nn: next simulation\nq: verbose\nr: reset robot position\nf: freeze robot\n" +
+                  "m: move joint to position")
         if key_next in keys and keys[key_next] & pybullet.KEY_WAS_TRIGGERED:
             self.reset()
         if key_verbose in keys and keys[key_verbose] & pybullet.KEY_WAS_TRIGGERED:
@@ -512,8 +521,9 @@ class RoboWorldEnv(gym.Env):
             self._reset_robot_joint_values()
         if key_stop in keys and keys[key_stop] & pybullet.KEY_WAS_TRIGGERED:
             self.robot_stopped = not self.robot_stopped
-        if key_help in keys and keys[key_help] & pybullet.KEY_WAS_TRIGGERED:
-            print("n: next simulation\nq: verbose\nr: reset robot position\nf: freeze robot\nh: print help commands")
+            print("self.robot_stopped:", self.robot_stopped)
+        if key_move in keys and keys[key_move] & pybullet.KEY_WAS_TRIGGERED:
+            self.force_action = not self.force_action
 
     def _is_ef_angle_vertical(self) -> bool:
         """check if the EF angle is close to vertical"""
@@ -640,7 +650,7 @@ class RoboWorldEnv(gym.Env):
         # joint actions, the last joint is not a real joint (it is the EF attachment)
         for joint_index in range(0, self.joints_count-1):
             if self.robot_stopped:
-                self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.POSITION_CONTROL, 0.0)
+                self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.VELOCITY_CONTROL, 0.0)
             else:
                 self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, joint_action[joint_index])
 
