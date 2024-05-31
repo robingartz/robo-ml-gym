@@ -93,6 +93,7 @@ def get_statistics(env, model, path):
     held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
     # avg_stack_dist is the avg of all (4) cubes from the stack position averaged across all time and sims
     avg_stack_dist = "%.2f" % info["avg_stack_dist"] / total_steps
+    avg_cubes_stacked = info["cubes_stacked_tally"] / runs
     held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
 
     info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist},{avg_ef_angle}," +
@@ -106,9 +107,9 @@ def get_statistics(env, model, path):
                 "Fails": fails,
                 "Success Rate": success_rate,
                 #"ef_cube_dist": avg_ef_cube_dist,
-                #"cubes_stacked": avg_cubes_stacked,
                 "Avg Distance": avg_dist,
                 "Avg Stack Distance": avg_stack_dist,
+                "Avg Cubes Stacked": avg_cubes_stacked,
                 "Avg EF Angle": avg_ef_angle,
                 "Held Cube Time Percentage": held_cube_percent_time,
                 "Held Cube Rate": held_cube_rate
