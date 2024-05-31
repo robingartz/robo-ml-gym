@@ -87,17 +87,20 @@ def get_statistics(env, model, path):
     success_rate = int(successes / runs * 100)
     avg_score = int(info["carry_over_score"] / runs)
     avg_dist = info["dist_tally"] / runs
-    avg_dist_str = "%.2f" % avg_dist
     avg_ef_angle = int(info["ef_angle_tally"] / runs)
     total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
     held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
     # avg_stack_dist is the avg of all (4) cubes from the stack position averaged across all time and sims
-    avg_stack_dist = "%.2f" % info["avg_stack_dist_tally"] / total_steps
+    avg_stack_dist = info["avg_stack_dist_tally"] / total_steps
     avg_cubes_stacked = info["cubes_stacked_tally"] / runs
     held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
 
+    avg_dist_str = "%.2f" % avg_dist
+    avg_stack_dist_str = "%.2f" % avg_stack_dist
+    avg_cubes_stacked_str = "%.2f" % avg_cubes_stacked
     info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist},{avg_ef_angle}," +
-                f"{held_cube_rate},{avg_score},{successes},{fails},{success_rate}")
+                f"{held_cube_rate},{avg_score},{successes},{fails},{success_rate},{avg_cubes_stacked_str}" +
+                f"{avg_stack_dist_str}")
 
     results = {
                 #"time:", learning_rate,
