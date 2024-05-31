@@ -78,41 +78,51 @@ def save_model(env, model, model_filename):
     env.unwrapped.set_fname(model_filename.strip(MODELS_DIR))
 
 
-def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
-    with open(scores_path, 'a') as f:
-        info = env.unwrapped.info
-        successes = info["success_tally"]
-        fails = info["fail_tally"]
-        fails = 1 if fails == 0 else fails
-        runs = successes + fails
-        success_rate = int(successes / runs * 100)
-        avg_score = int(info["carry_over_score"] / runs)
-        avg_dist = info["dist_tally"] / runs
-        avg_dist_str = "%.2f" % avg_dist
-        avg_ef_angle = int(info["ef_angle_tally"] / runs)
-        total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
-        held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
-        held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
-        f.write(f"\n{path},{model.learning_rate},{avg_score},{successes},{fails},{success_rate}," +
-                f"{avg_dist_str},{avg_ef_angle}")
+def get_statistics(env, model, path):
+    info = env.unwrapped.info
+    successes = info["success_tally"]
+    fails = info["fail_tally"]
+    fails = 1 if fails == 0 else fails
+    runs = successes + fails
+    success_rate = int(successes / runs * 100)
+    avg_score = int(info["carry_over_score"] / runs)
+    avg_dist = info["dist_tally"] / runs
+    avg_dist_str = "%.2f" % avg_dist
+    avg_ef_angle = int(info["ef_angle_tally"] / runs)
+    total_steps = info["held_cube_step_tally"] + info["held_no_cube_step_tally"]
+    held_cube_percent_time = info["held_cube_step_tally"] / total_steps * 100
+    # avg_stack_dist is the avg of all (4) cubes from the stack position averaged across all time and sims
+    avg_stack_dist = "%.2f" % info["avg_stack_dist"] / total_steps
+    held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
 
-        if wandb_enabled:
-            # TODO: record SB3 metrics: approx_kl, clip_fraction, entropy_loss etc
-            wandb.log(
-                {
-                    #"time:", learning_rate,
-                    #"ETA":
-                    "Avg Score": avg_score,
-                    "Successes": successes,
-                    "Fails": fails,
-                    "Success Rate": success_rate,
-                    #"ef_cube_dist": avg_ef_cube_dist,
-                    #"cubes_stacked": avg_cubes_stacked,
-                    "Avg Distance": avg_dist,
-                    "Avg EF Angle": avg_ef_angle,
-                    "Held Cube Time Percentage": held_cube_percent_time,
-                    "Held Cube Rate": held_cube_rate
-                })
+    info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist},{avg_ef_angle}," +
+                f"{held_cube_rate},{avg_score},{successes},{fails},{success_rate}")
+
+    results = {
+                #"time:", learning_rate,
+                #"ETA":
+                "Avg Score": avg_score,
+                "Successes": successes,
+                "Fails": fails,
+                "Success Rate": success_rate,
+                #"ef_cube_dist": avg_ef_cube_dist,
+                #"cubes_stacked": avg_cubes_stacked,
+                "Avg Distance": avg_dist,
+                "Avg Stack Distance": avg_stack_dist,
+                "Avg EF Angle": avg_ef_angle,
+                "Held Cube Time Percentage": held_cube_percent_time,
+                "Held Cube Rate": held_cube_rate
+    }
+    return results, info_str
+
+
+def save_score(env, model, path, wandb_enabled, scores_path=SCORES_FILE):
+    results, info_str = get_statistics(env, model, path)
+    with open(scores_path, 'a') as f:
+        f.write(info_str)
+    if wandb_enabled:
+        # TODO: record SB3 metrics: approx_kl, clip_fraction, entropy_loss etc
+        wandb.log(results)
 
 
 def get_previous_model_names():
@@ -142,7 +152,8 @@ def get_previous_model(env, custom_objects=None, match_str=None):
             models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
-                    model = model_class.load(last_model_name, env, custom_objects=custom_objects)
+                    model = PPO.load(last_model_name, env)
+                    #model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
         except KeyboardInterrupt as exc:
             print(exc)

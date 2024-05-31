@@ -165,7 +165,7 @@ class RoboWorldEnv(gym.Env):
         self.info = {
             "carry_over_score": 0, "held_cube_tally": 0, "held_no_cube_tally": 0, "success_tally": 0,
             "fail_tally": 0, "dist_tally": 0, "ef_angle_tally": 0, "cubes_stacked_tally": 0,
-            "held_cube_step_tally": 0, "held_no_cube_step_tally": 0, "pickup_tally": 0
+            "held_cube_step_tally": 0, "held_no_cube_step_tally": 0, "pickup_tally": 0, "avg_stack_dist_tally": 0
         }
 
         # unused
@@ -562,6 +562,10 @@ class RoboWorldEnv(gym.Env):
                 return True
         return False
 
+    def _xy_dist(self, arr1, arr2):
+        """return a 2D array of the x-y distances"""
+        return ((arr2[0] - arr1[0])**2 + (arr2[1] - arr1[1])**2)**0.5
+
     def _process_cube_interactions(self):
         """pickup cube if EF close"""
         if self.held_cube is None:
@@ -719,6 +723,13 @@ class RoboWorldEnv(gym.Env):
         self.info["ef_angle_tally"] += self.ef_angle
         self.info["cubes_stacked_tally"] += self.cubes_stacked
         self.info["carry_over_score"] += int(self.score)
+        # sample this metric at a lower resolution
+        tally_interval = 40
+        if self.ep_step % tally_interval:
+            dist = 0.0
+            for cube in self.cubes:
+                dist += self._xy_dist(cube.pos, self.stack_pos)
+            self.info["avg_stack_dist_tally"] += tally_interval * dist / len(self.cubes)
 
         # tally success/failures
         if self.goal == "pickup":
