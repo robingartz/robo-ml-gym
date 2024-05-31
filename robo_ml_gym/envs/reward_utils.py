@@ -19,6 +19,21 @@ def _reward_func_max_12dist_add4_60dist_add5(dist):
     return max(-12 * dist + 4, -60 * dist + 5)
 
 
+"""def reward_1div_max_dist_cube_dim(dist):
+    return 1 / max(dist, 0.05 / 2)
+
+
+def _get_simple_reward_normalised(env):
+    reward_per_stacked_cube = 5
+    norm_ef_cube_dist = env.ef_cube_dist / env.init_ef_cube_dist
+    reward = 1 / max(norm_ef_cube_dist, 0.05 / 2) / 40
+    norm_cube_stack_dist = env.cube_stack_dist / env.init_cube_stack_dist
+    reward += 1 / max(norm_cube_stack_dist, 0.05 / 2) / 40
+    reward += reward_per_stacked_cube * env.cubes_stacked
+    return reward
+"""
+
+
 class Rewards:
     REWARD_FUNC_MAP = {
         "0": _reward_func_none,
