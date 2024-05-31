@@ -725,7 +725,7 @@ class RoboWorldEnv(gym.Env):
         self.info["carry_over_score"] += int(self.score)
         # sample this metric at a lower resolution
         tally_interval = 40
-        if self.ep_step % tally_interval:
+        if self.ep_step % tally_interval == 0:
             dist = 0.0
             for cube in self.cubes:
                 dist += self._xy_dist(cube.pos, self.stack_pos)
