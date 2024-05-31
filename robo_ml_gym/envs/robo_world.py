@@ -15,6 +15,7 @@ from gymnasium import spaces
 
 from robo_ml_gym.envs.cube import Cube
 from robo_ml_gym.envs.region import Region
+from robo_ml_gym.envs import reward_utils
 
 
 # box dimensions (the area the cube can spawn within)
@@ -85,6 +86,9 @@ class RoboWorldEnv(gym.Env):
         # scoring
         self.goal = self.config["env"]["goal"]
         self.score = 0
+
+        # reward function
+        self.rewards = reward_utils.Rewards(self.config_reward)
 
         # robot vars
         self.urdf_path = "robo_ml_gym/models/irb120/irb120.urdf"
@@ -173,7 +177,6 @@ class RoboWorldEnv(gym.Env):
         self.repeat_worst_performances = self.config["env"]["repeat_worst_performances"]
         # run physics sim for n steps, then give back control to agent
         self.total_steps_between_interaction = self.config["env"]["total_steps_between_interaction"]
-        self.prev_dist = self.dist
         self.prev_end_effector_pos = None
 
         self.force_action = False
@@ -214,9 +217,11 @@ class RoboWorldEnv(gym.Env):
             self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
 
         terminated = False #self.held_cube is not None #False  #self.dist < 0.056
-        reward = self._get_reward()
+        reward = self.rewards.get_reward(self.dist, self.ef_pos, self.ef_angle, self.target_pos, self.held_cube,
+                                         self.cubes_stacked, CUBE_DIM)
         observation = self._get_obs()
         info = self._get_info()
+        self.score += reward
         #reward = self._process_terminated_state(terminated, reward)
 
         self.print_visual(self._get_step_info_str(observation, reward))
@@ -234,7 +239,6 @@ class RoboWorldEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         """resets the robot position, cube position, score and gripper states"""
-        #self.log_reset_results()
 
         # seeds self.np_random
         super().reset(seed=seed)
@@ -248,7 +252,7 @@ class RoboWorldEnv(gym.Env):
         # reset vars
         self.held_cube = None
         self.picked_up_cube_count = 0
-        self.prev_dist = self.dist = 1.0
+        self.dist = 1.0
         self.ef_to_target_angle = 90
         if self.cube_constraint_id is not None:
             pybullet.removeConstraint(self.cube_constraint_id)
@@ -336,51 +340,6 @@ class RoboWorldEnv(gym.Env):
                 reward, suction_on))
         return s
 
-    def log_reset_results(self):
-        """write results to wandb"""
-        if self.wandb_enabled:
-            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
-
-    def log_avg_results(self):
-        """write results to wandb"""
-        if self.wandb_enabled:
-            wandb.log({"score": self.score, "ef_cube_dist": self.ef_cube_dist, "cubes_stacked": self.cubes_stacked})
-
-    def _get_reward(self) -> float:
-        """reward function: the closer the EF is to the target, the higher the reward"""
-        # TODO: allow ef_angle to pickup cubes from the sides!!!
-
-        reward = -12 * self.dist + 4
-        #reward = 0.1 / (self.dist + 0.05 / 2)
-        #reward = max(-12 * self.dist + 4, -60 * self.dist + 5)
-
-        if self.ef_pos[2] < 0:
-            reward += self.config_reward["reward_for_ef_ground_col"]
-
-        if self.held_cube is not None:
-            #reward += (1 / max(self.cube_stack_dist, 0.05 / 2)) / 40
-            reward += self.config_reward["reward_per_held_cube"]
-            if self.held_cube.pos[2] < CUBE_DIM / 2 - 0.0001:
-                reward += self.config_reward["reward_for_cube_ground_col"]
-
-        if self.ef_pos[2] < self.target_pos[2] - CUBE_DIM / 4:
-            reward += self.config_reward["reward_for_ef_below_target_z"]
-
-        # reward more vertical EF
-        if self.config_reward["reward_ef_vertical"]:
-            reward += max(0, (self.ef_angle - 90.0) / 90.0) * self.config_reward["reward_ef_vertical_scale"]
-
-        reward += self.config_reward["reward_per_stacked_cube"] * self.cubes_stacked
-
-        #if self.cubes_stacked == self.cube_count:
-        #    ep_steps_remaining = self.ep_step_limit - self.ep_step
-        #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * self.cube_count
-        #    reward = max_reward_per_step * ep_steps_remaining
-
-        self.score += reward
-        self.prev_dist = self.dist
-        return reward
-
     def set_fname(self, fname: str):
         self.fname = fname
         self.verbose_file = f"models/verbose/{self.fname}.txt"
@@ -403,10 +362,6 @@ class RoboWorldEnv(gym.Env):
     def _print_info(self):
         elapsed = int(time.time() - self.start_time)
         self.score = max(0, self.score)
-        #self.print_verbose(f"ETA: {self._get_time_remaining()}s, total_steps: {self.total_steps+1}, sim: {self.resets}, "
-        #                   f"steps: {self.ep_step+1}, cube_dist: %.4f, score: %4d, elapsed: {elapsed}s, "
-        #                   f"has cube: {self.held_cube is not None}, cubes_stacked: {self.cubes_stacked}, stack_dist: %.4f"
-        #                   % (self.ef_cube_dist, int(self.score), self.cube_stack_dist))
         if self.resets == 1:
             self.print_verbose("t_rem,  steps , resets,epstep,ef_dist, score ,elapsed,cube,stacked,stack_dist,ef_angle")
         held_cube = 1 if self.held_cube is not None else 0
@@ -850,6 +805,5 @@ class RoboWorldEnv(gym.Env):
             pybullet.resetJointState(bodyUniqueId=self.robot_id, jointIndex=idx, targetValue=joint_value, targetVelocity=0)
 
     def close(self):
-        #self.log_avg_results()
         if self.physics_client is not None:
             pybullet.disconnect()
