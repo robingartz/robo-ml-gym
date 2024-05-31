@@ -323,11 +323,12 @@ class RoboWorldEnv(gym.Env):
     def _get_step_info_str(self, observation: dict, reward: float) -> str:
         target_pos = self.target_pos
         rel_pos = observation["rel_pos"]
+        suction_on = "On" if self.suction_on else "Off"
         s = ("target_pos: [%.2f %.2f %.2f], " % (target_pos[0], target_pos[1], target_pos[2]) +
              "rel_pos: [%.3f %.3f %.3f], " % (rel_pos[0], rel_pos[1], rel_pos[2]) +
-             "dist: %.2f, ef_z_angle: %3d, cube_held: %d, stacked: %d, reward: %.2f"
+             "dist: %.2f, ef_z_angle: %3d, cube_held: %d, stacked: %d, reward: %.2f, suction: %s"
              % (self.dist, self.ef_angle, int(self.held_cube is not None), self.cubes_stacked,
-                reward))
+                reward, suction_on))
         return s
 
     def log_reset_results(self):
@@ -620,7 +621,9 @@ class RoboWorldEnv(gym.Env):
         for idx, cube in enumerate(self.cubes):
             if (self._xy_close(cube.pos, required_cube_pos, self.stack_tolerance) and
                     abs(np.linalg.norm(cube.pos - required_cube_pos)) < CUBE_DIM/3):  # TODO: change div 3 as required
-                self.cubes_stacked = idx + 1
+                if self.held_cube != cube:
+                    # a cube only counts as stacked once the EF has release it
+                    self.cubes_stacked = idx + 1
             else:
                 break
             required_cube_pos = cube.pos + np.array([0.0, 0.0, CUBE_DIM])
@@ -678,7 +681,7 @@ class RoboWorldEnv(gym.Env):
             pass
 
         elif self.goal == "stack":
-            if self.config["env"]["obs_space"]["suction_on"]:
+            if self.config["env"]["action_space"]["suction_on"]:
                 self._process_cube_interactions_pickup_drop()
             else:
                 self._process_cube_interactions_pickup_drop_auto()
