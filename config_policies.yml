@@ -1,0 +1,11 @@
+# randomise policy hyperparameters
+
+policy:
+  # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
+  policy: ["PPO", "SAC", "A2C"]  #, "TD3", "DDPG"]
+  max_episode_steps: false
+  ep_step_limit: false
+  batch_size: false
+  n_epochs: 10
+  use_sde: False  # [False, True]
+  use_rms_prop: True  # [False, True]

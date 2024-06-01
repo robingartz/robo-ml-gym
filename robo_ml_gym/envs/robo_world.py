@@ -200,6 +200,13 @@ class RoboWorldEnv(gym.Env):
 
         self.info["held_cube_step_tally"] += 0 if self.held_cube is None else 1
         self.info["held_no_cube_step_tally"] += 1 if self.held_cube is None else 0
+        # sample this metric at a lower resolution
+        tally_interval = 40
+        if self.ep_step % tally_interval == 0:
+            dist = 0.0
+            for cube in self.cubes:
+                dist += env_utils.get_xy_dist(cube.pos, self.stack_pos)
+            self.info["avg_stack_dist_tally"] += tally_interval * dist / len(self.cubes)
 
         self.prev_end_effector_pos = self.ef_pos
         ef_pos = pybullet.getLinkState(self.robot_id, self.joints_count-1)[0]
@@ -644,13 +651,6 @@ class RoboWorldEnv(gym.Env):
         self.info["ef_angle_tally"] += self.ef_angle
         self.info["cubes_stacked_tally"] += self.cubes_stacked
         self.info["carry_over_score"] += int(self.score)
-        # sample this metric at a lower resolution
-        tally_interval = 40
-        if self.ep_step % tally_interval == 0:
-            dist = 0.0
-            for cube in self.cubes:
-                dist += env_utils.get_xy_dist(cube.pos, self.stack_pos)
-            self.info["avg_stack_dist_tally"] += tally_interval * dist / len(self.cubes)
 
         # tally success/failures
         if self.goal == "pickup":

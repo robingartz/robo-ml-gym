@@ -3,15 +3,17 @@ import os
 import re
 import sys
 import time
-from stable_baselines3 import PPO, SAC, A2C  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
+from stable_baselines3 import PPO, SAC, A2C, TD3, DDPG  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 from stable_baselines3.common.logger import configure
+# from stable_baselines3.common.utils import set_random_seed
 import wandb
 import config
+# import custom_callback
 
 WANDB_PROJECT = "robo-ml-gym"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 CONFIG_FILE = "config.yml"
-CONFIG_RND_FILE = "config_rnd.yml"
+CONFIG_RND_FILE = "config_policies.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
@@ -33,6 +35,8 @@ GROUP = GROUP_PREFIX
 # silence logger
 logger = configure()
 logger.set_level(level=50)
+# set all random seeds
+# set_random_seed(123)
 # TODO: save the random seed used
 
 
@@ -98,8 +102,9 @@ def get_statistics(env, model, path):
     avg_dist_str = "%.2f" % avg_dist
     avg_stack_dist_str = "%.2f" % avg_stack_dist
     avg_cubes_stacked_str = "%.2f" % avg_cubes_stacked
+    held_cube_rate_str = "%.2f" % held_cube_rate
     info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist},{avg_ef_angle}," +
-                f"{held_cube_rate},{avg_score},{successes},{fails},{success_rate},{avg_cubes_stacked_str}" +
+                f"{held_cube_rate_str},{avg_score},{successes},{fails},{success_rate},{avg_cubes_stacked_str}," +
                 f"{avg_stack_dist_str}")
 
     results = {
@@ -153,13 +158,13 @@ def get_previous_model(env, custom_objects=None, match_str=None):
             prev_steps = int(re.search("-v([0-9]*)k-", last_model_name).group()[2:-2]) * 1_000
 
             # load and train model
-            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C}
+            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C, "TD3": TD3, "DDPG": DDPG}
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
                     model = PPO.load(last_model_name, env)
                     #model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
-        except KeyboardInterrupt as exc:
+        except ValueError as exc:
             print(exc)
             pass
 

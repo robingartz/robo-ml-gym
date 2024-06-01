@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "B9"
+  group: "B10"
   # pc_name is set by config.py
   pc_name: null
 
@@ -25,6 +25,8 @@ policy:
   ep_step_limit: 1920
   batch_size: 60
   n_epochs: 10
+  use_sde: False
+  use_rms_prop: True
 
 env:
   # phantom_touch | touch | pickup | stack
