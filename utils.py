@@ -12,8 +12,8 @@ import config
 
 WANDB_PROJECT = "robo-ml-gym"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
-CONFIG_FILE = "config.yml"
-CONFIG_RND_FILE = "config_policies.yml"
+CONFIG_FILE = "configs/config.yml"
+CONFIG_RND_FILE = "configs/config_policies.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
@@ -22,7 +22,7 @@ SCORES_FILE = "scores.txt"
 CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
 try:
     if os.environ["ROBO_GYM_VISUALISE"] == "1":
-        CONFIG_FILE = "config_visual.yml"
+        CONFIG_FILE = "configs/config_visual.yml"
         CONFIG = config.get_config(CONFIG_FILE)
         print(CONFIG)
 except KeyError:

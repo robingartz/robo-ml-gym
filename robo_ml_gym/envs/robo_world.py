@@ -120,7 +120,7 @@ class RoboWorldEnv(gym.Env):
 
         # cube vars
         self.cube_count = self.config["env"]["cube_count"]
-        if self.goal == "phantom_touch" or self.goal == "touch" or self.goal == "pickup":
+        if self.goal == "reach" or self.goal == "touch" or self.goal == "pickup":
             self.cube_count = 1
         self.cubes = []
         self.cube_ids = []
@@ -408,7 +408,7 @@ class RoboWorldEnv(gym.Env):
             self.cube_stack_dist = abs(np.linalg.norm(self.stack_pos - cube_pos))
 
         # TODO: FIX ME
-        if self.goal == "phantom_touch":
+        if self.goal == "reach":
             self.ef_cube_dist = abs(np.linalg.norm(self.target_pos - self.ef_pos))
             self.dist = self.ef_cube_dist
             self.cube_stack_dist = 1.0
@@ -624,7 +624,7 @@ class RoboWorldEnv(gym.Env):
             self.target_pos = np.array(self.cubes[0].pos)
             self.target_pos[2] += CUBE_DIM / 2
 
-        elif self.goal == "phantom_touch":
+        elif self.goal == "reach":
             # only updates on reset
             pass
 
@@ -665,7 +665,7 @@ class RoboWorldEnv(gym.Env):
         elif self.goal == "touch":
             if self.held_cube is not None: self.info["success_tally"] += 1
             else: self.info["fail_tally"] += 1
-        elif self.goal == "phantom_touch":
+        elif self.goal == "reach":
             if self.dist < self.pickup_tolerance: self.info["success_tally"] += 1
             else: self.info["fail_tally"] += 1
         elif self.goal == "stack":
@@ -675,7 +675,7 @@ class RoboWorldEnv(gym.Env):
     def _reset_target_pos(self):
         if self.cube_count > 0:
             self.target_pos = self.cubes[0].pos
-        if self.goal == "phantom_touch":
+        if self.goal == "reach":
             self.target_pos = self.robot_workspace.get_rnd_point_bounded_z(CUBE_DIM / 2, CUBE_DIM * 6)
             if self.render_mode == "human":
                 debug_point = pybullet.addUserDebugPoints(
