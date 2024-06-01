@@ -87,6 +87,7 @@ def save_model(env, model, model_filename):
 
 def get_statistics(env, model, path):
     info = env.unwrapped.info
+    start_time = env.unwrapped.start_time
     successes = info["success_tally"]
     fails = info["fail_tally"]
     fails = 1 if fails == 0 else fails
@@ -101,6 +102,7 @@ def get_statistics(env, model, path):
     avg_stack_dist = info["avg_stack_dist_tally"] / total_steps
     avg_cubes_stacked = info["cubes_stacked_tally"] / runs
     held_cube_rate = info["held_cube_tally"] / runs  # this is if a cube was held at end of sim
+    avg_runtime = start_time / runs
 
     avg_dist_str = "%.2f" % avg_dist
     avg_stack_dist_str = "%.2f" % avg_stack_dist
@@ -122,7 +124,8 @@ def get_statistics(env, model, path):
                 "Avg Cubes Stacked": avg_cubes_stacked,
                 "Avg EF Angle": avg_ef_angle,
                 "Held Cube Time Percentage": held_cube_percent_time,
-                "Held Cube Rate": held_cube_rate
+                "Held Cube Rate": held_cube_rate,
+                "Avg Runtime": avg_runtime
     }
     return results, info_str
 
