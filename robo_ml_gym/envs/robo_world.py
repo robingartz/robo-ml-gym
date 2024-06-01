@@ -1,4 +1,5 @@
 # standard libs
+import logging
 import time
 import math
 import os
@@ -418,7 +419,7 @@ class RoboWorldEnv(gym.Env):
         elif self.goal == "stack":
             self.dist = self.ef_cube_dist
             if self.held_cube is not None:
-                self.print_visual("setting: dist = cube_stack_dist")
+                logging.debug("setting: dist = cube_stack_dist")
                 self.dist = self.cube_stack_dist
 
         # angle between EF to target and the Z-axis

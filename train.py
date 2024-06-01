@@ -56,7 +56,7 @@ if __name__ == '__main__':
         policy = utils.CONFIG["policy"]["policy"]
 
         # train new model
-        policy_methods[policy](utils.CONFIG["policy"])
+        #policy_methods[policy](utils.CONFIG["policy"])
         #train_new_ppo(total_steps_limit=_total_steps_limit, ep_step_limit=_ep_step_limit)
 
         for i in range(49): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)

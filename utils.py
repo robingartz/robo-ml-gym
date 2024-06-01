@@ -27,6 +27,9 @@ try:
         print(CONFIG)
 except KeyError:
     pass
+# no random config parameters on local machine
+if sys.platform == "win32":
+    CONFIG = config.get_config(CONFIG_FILE)
 
 GROUP_PREFIX = "NA"
 if CONFIG["meta"].get("group", None) is not None:
@@ -103,9 +106,8 @@ def get_statistics(env, model, path):
     avg_stack_dist_str = "%.2f" % avg_stack_dist
     avg_cubes_stacked_str = "%.2f" % avg_cubes_stacked
     held_cube_rate_str = "%.2f" % held_cube_rate
-    info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist},{avg_ef_angle}," +
-                f"{held_cube_rate_str},{avg_score},{successes},{fails},{success_rate},{avg_cubes_stacked_str}," +
-                f"{avg_stack_dist_str}")
+    info_str = (f"\n{path},{model.learning_rate},{avg_dist_str},{avg_stack_dist_str},{avg_ef_angle}," +
+                f"{held_cube_rate_str},{avg_score},{successes},{fails},{success_rate},{avg_cubes_stacked_str}")
 
     results = {
                 #"time:", learning_rate,
@@ -164,11 +166,19 @@ def get_previous_model(env, custom_objects=None, match_str=None):
                     model = PPO.load(last_model_name, env)
                     #model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
-        except ValueError as exc:
+        except Exception as exc:
             print(exc)
             pass
 
     return None, 0
+
+
+def step_callback(model, _):
+    try:
+        _env = model["env"].envs[0].unwrapped
+        print(_env.total_steps)
+    except Exception as exc:
+        print(exc)
 
 
 def run(env, model, label, total_time_steps, prev_steps=0):
@@ -178,7 +188,7 @@ def run(env, model, label, total_time_steps, prev_steps=0):
     model.set_logger(logger)
 
     try:
-        model.learn(total_timesteps=total_time_steps)
+        model.learn(total_timesteps=total_time_steps)#, callback=step_callback)
         save_score(env, model, path, True)
     except KeyboardInterrupt as exc:
         save_model(env, model, path)

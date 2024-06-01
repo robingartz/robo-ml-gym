@@ -2,7 +2,7 @@
 
 policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
-  policy: ["PPO", "SAC", "A2C"]  #, "TD3", "DDPG"]
+  policy: ["PPO"] #, "A2C", "SAC", "TD3", "DDPG"]
   max_episode_steps: false
   ep_step_limit: false
   batch_size: false
