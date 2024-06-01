@@ -1,5 +1,6 @@
 # standard libs
 import logging
+import random
 import time
 import math
 import os
@@ -193,6 +194,10 @@ class RoboWorldEnv(gym.Env):
         # how will this work in a visualisation? probably cannot just do 1 step as this is different to training
         #for i in range(self.total_steps_between_interaction):
         pybullet.stepSimulation()
+
+        # TODO: implement cube loss when colliding with ground
+        #if self.config["env"]["cube_falls_on_ground_collision"]:
+        #    pybullet.getContactPoints(self.held_cube)
 
         for cube in self.cubes:
             cube.pos, cube.orn = pybullet.getBasePositionAndOrientation(cube.Id)
@@ -718,6 +723,14 @@ class RoboWorldEnv(gym.Env):
 
             cube.orn = pybullet.getQuaternionFromEuler([0, 0, 0])
             pybullet.resetBasePositionAndOrientation(cube.Id, cube.pos, cube.orn)
+
+        if self.config["env"]["stack_start_with_cubes"]:
+            if random.randint(0, 1) == 1:
+                if self.ef_pos is not None:
+                    cube = self.cubes[0]
+                    cube.set_top_pos(self.ef_pos)
+                    pybullet.resetBasePositionAndOrientation(cube.Id, cube.pos, cube.orn)
+                    self._attach_cube(self.cubes[0])
 
     def _setup_cubes(self):
         cube_shape_id = pybullet.createCollisionShape(shapeType=pybullet.GEOM_BOX, halfExtents=[0.05/2, 0.05/2, 0.05/2])

@@ -31,6 +31,7 @@ policy:
 env:
   # phantom_touch | touch | pickup | stack
   goal: "stack"
+  stack_start_with_cubes: true
   # vertical | horizontal
   robot_orientation: "vertical"
   # position | velocity
