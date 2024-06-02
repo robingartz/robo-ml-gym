@@ -43,10 +43,12 @@ env:
   repeat_worst_performances: false
   total_steps_between_interaction: false
   use_absolute_pos: [false, true]
+  # even if action_space.suction_on is disabled, include it in the action space for future training
+  include_suction_on_action: false
 
   obs_space:
     suction_on: false
-    holding_cube: [false, true]
+    holding_cube: true
     joints: false
     rel_pos: false
     ef_height: false

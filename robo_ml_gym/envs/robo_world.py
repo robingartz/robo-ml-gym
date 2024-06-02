@@ -153,7 +153,8 @@ class RoboWorldEnv(gym.Env):
 
         low_limits = []
         high_limits = []
-        if self.config["env"]["action_space"]["suction_on"]:
+        if (self.config["env"]["action_space"]["suction_on"] or
+                self.config["env"]["action_space"]["include_suction_on_action"]):
             # 1 EF suction action ([-1,0]: off, [0, 1]: on)
             suction_on_limits = [-1.0, 1.0]
             low_limits += [suction_on_limits[0]]
@@ -228,7 +229,7 @@ class RoboWorldEnv(gym.Env):
                 pybullet.removeUserDebugItem(self.orn_line)
             self.orn_line = pybullet.addUserDebugLine(ef_pos, self.target_pos)
 
-        terminated = False  #self.held_cube is not None #False  #self.dist < 0.056
+        terminated = self._get_terminated()  #self.held_cube is not None #False  #self.dist < 0.056
         reward = self.rewards.get_reward(self.dist, self.ef_pos, self.ef_angle, self.target_pos, self.held_cube,
                                          self.cubes_stacked, self.suction_on, CUBE_DIM)
         observation = self._get_obs()
@@ -588,6 +589,8 @@ class RoboWorldEnv(gym.Env):
         if self.config["env"]["action_space"]["suction_on"]:
             self.suction_on = action[0] >= 0.0
             joint_action = action[1:]
+        elif self.config["env"]["action_space"]["include_suction_on_action"]:
+            joint_action = action[1:]
         else:
             joint_action = action
 
@@ -597,6 +600,18 @@ class RoboWorldEnv(gym.Env):
                 self._set_joint_motor_control2(self.robot_id, joint_index, pybullet.VELOCITY_CONTROL, 0.0)
             else:
                 self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, joint_action[joint_index])
+
+    def _get_terminated(self):
+        if self.info["env"]["early_termination"]:
+            if self.goal == "reach":
+                ...
+            elif self.goal == "touch":
+                ...
+            elif self.goal == "pickup":
+                ...
+            elif self.goal == "stack":
+                ...
+        return False
 
     @staticmethod
     def _set_joint_motor_control2(body_id: int, joint_index: int, control_mode: int, action: float):
