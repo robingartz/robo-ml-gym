@@ -115,8 +115,6 @@ def get_statistics(env, model, path):
                 #"time:", learning_rate,
                 #"ETA":
                 "Avg Score": avg_score,
-                "Successes": successes,
-                "Fails": fails,
                 "Success Rate": success_rate,
                 #"ef_cube_dist": avg_ef_cube_dist,
                 "Avg Distance": avg_dist,
