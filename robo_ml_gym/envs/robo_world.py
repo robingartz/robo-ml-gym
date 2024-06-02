@@ -154,7 +154,7 @@ class RoboWorldEnv(gym.Env):
         low_limits = []
         high_limits = []
         if (self.config["env"]["action_space"]["suction_on"] or
-                self.config["env"]["action_space"]["include_suction_on_action"]):
+                self.config["env"]["include_suction_on_action"]):
             # 1 EF suction action ([-1,0]: off, [0, 1]: on)
             suction_on_limits = [-1.0, 1.0]
             low_limits += [suction_on_limits[0]]
@@ -589,7 +589,7 @@ class RoboWorldEnv(gym.Env):
         if self.config["env"]["action_space"]["suction_on"]:
             self.suction_on = action[0] >= 0.0
             joint_action = action[1:]
-        elif self.config["env"]["action_space"]["include_suction_on_action"]:
+        elif self.config["env"]["include_suction_on_action"]:
             joint_action = action[1:]
         else:
             joint_action = action

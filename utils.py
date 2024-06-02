@@ -3,7 +3,7 @@ import os
 import re
 import sys
 import time
-from stable_baselines3 import PPO, SAC, A2C, TD3, DDPG  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
+from stable_baselines3 import PPO, SAC, A2C, TD3, DDPG, DQN  # PPO, SAC, A2C, TD3, DDPG, HER-replay buffer
 from stable_baselines3.common.logger import configure
 # from stable_baselines3.common.utils import set_random_seed
 import wandb
@@ -165,11 +165,10 @@ def get_previous_model(env, custom_objects=None, match_str=None):
             prev_steps = int(re.search("-v([0-9]*)k-", last_model_name).group()[2:-2]) * 1_000
 
             # load and train model
-            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C, "TD3": TD3, "DDPG": DDPG}
+            models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C, "TD3": TD3, "DDPG": DDPG, "DQN": DQN}
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
-                    model = PPO.load(last_model_name, env)
-                    #model = model_class.load(last_model_name, env, custom_objects=custom_objects)
+                    model = model_class.load(last_model_name, env, custom_objects=custom_objects)
                     return model, prev_steps
         except Exception as exc:
             print(exc)
