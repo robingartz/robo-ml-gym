@@ -53,7 +53,6 @@ env:
     rel_pos: true
     ef_height: true
     ef_speed: false
-
   action_space:
     suction_on: false
     joints: true
@@ -68,6 +67,6 @@ env:
     reward_suction_control_scale: 2
     reward_per_held_cube: 8
     reward_per_stacked_cube: 10
-    reward_for_ef_ground_col: -100
-    reward_for_cube_ground_col: -5
-    reward_for_ef_below_target_z: -1
+    reward_for_ef_ground_col: -1
+    reward_for_cube_ground_col: 0
+    reward_for_ef_below_target_z: 0
