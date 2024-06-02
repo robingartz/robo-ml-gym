@@ -31,7 +31,7 @@ policy:
 env:
   # reach | touch | pickup | stack
   goal: "stack"
-  stack_start_with_cubes: true
+  stack_start_with_cubes: false
   # vertical | horizontal
   robot_orientation: "horizontal"
   # position | velocity

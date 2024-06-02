@@ -4,25 +4,25 @@
 #match_str: none
 
 meta:
-  group: "B10"
+  group: "B11"
   # pc_name is set by config.py
   pc_name: null
 
 policy:
   # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
   policy: "PPO"
-  learning_rate: 5e-5
-  learning_rate_5M: 1e-5
-  learning_rate_10M: 5e-6
-  learning_rate_15M: 1e-6
-  learning_rate_20M: 1e-6
+  learning_rate: 3e-4
+  learning_rate_5M: 1e-4
+  learning_rate_10M: 5e-5
+  learning_rate_15M: 1e-5
+  learning_rate_20M: 5e-6
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
   total_steps_limit: 100_000
   total_time_steps: 100_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
-  max_episode_steps: 1920
-  ep_step_limit: 1920
+  max_episode_steps: 2880
+  ep_step_limit: 2880
   batch_size: 60
   n_epochs: 10
   use_sde: False
@@ -31,9 +31,9 @@ policy:
 env:
   # reach | touch | pickup | stack
   goal: "stack"
-  stack_start_with_cubes: true
+  stack_start_with_cubes: false
   # vertical | horizontal
-  robot_orientation: "vertical"
+  robot_orientation: "horizontal"
   # position | velocity
   robot_control_mode: "position"
   cube_count: 4
@@ -41,11 +41,12 @@ env:
   constant_cube_spawn: false
   repeat_worst_performances: false
   total_steps_between_interaction: 0
+  use_absolute_pos: [false, true]
 
   obs_space:
     suction_on: false
-    holding_cube: false
-    joints: true
+    holding_cube: true
+    joints: false
     rel_pos: true
     ef_height: true
     ef_speed: false
@@ -61,8 +62,9 @@ env:
     # false: 0 | true: max(0, (self.ef_angle - 90) / 90) * reward_ef_vertical_scale
     reward_ef_vertical: true
     reward_ef_vertical_scale: 1
-    reward_per_held_cube: 10
-    reward_per_stacked_cube: 20
+    reward_suction_control_scale: 2
+    reward_per_held_cube: 8
+    reward_per_stacked_cube: 10
     reward_for_ef_ground_col: -100
-    reward_for_cube_ground_col: 0
-    reward_for_ef_below_target_z: 0
+    reward_for_cube_ground_col: -5
+    reward_for_ef_below_target_z: -1
