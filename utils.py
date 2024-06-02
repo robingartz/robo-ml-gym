@@ -10,7 +10,7 @@ import wandb
 import config
 # import custom_callback
 
-WANDB_PROJECT = "robo-ml-gym"
+WANDB_PROJECT = "robo-ml-gym-C"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 CONFIG_FILE = "configs/config.yml"
 CONFIG_RND_FILE = "configs/config_rnd.yml"
