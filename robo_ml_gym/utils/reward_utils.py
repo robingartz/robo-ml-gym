@@ -50,7 +50,7 @@ class Rewards:
         except KeyError as exc:
             raise KeyError("Invalid reward function selected") from exc
 
-    def get_reward(self, dist, ef_pos, ef_angle, target_pos, held_cube, cubes_stacked, cube_dim) -> float:
+    def get_reward(self, dist, ef_pos, ef_angle, target_pos, held_cube, cubes_stacked, suction_on, cube_dim) -> float:
         """reward function: the closer the EF is to the target, the higher the reward"""
         # TODO: allow ef_angle to pickup cubes from the sides/while cube is at an angle
 
@@ -67,6 +67,11 @@ class Rewards:
 
         if ef_pos[2] < target_pos[2] - cube_dim / 4:
             reward += self.config_reward["reward_for_ef_below_target_z"]
+
+        if (held_cube is None and not suction_on) or (held_cube is not None and suction_on):
+            reward += self.config_reward["reward_suction_control_scale"]
+        else:
+            reward -= self.config_reward["reward_suction_control_scale"]
 
         # reward more vertical EF
         if self.config_reward["reward_ef_vertical"]:

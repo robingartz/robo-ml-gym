@@ -33,7 +33,7 @@ env:
   # phantom_touch | touch | pickup | stack
   goal: false
   # vertical | horizontal
-  robot_orientation: ["vertical", "horizontal"]
+  robot_orientation: false
   # position | velocity
   robot_control_mode: false
   cube_count: false
@@ -43,17 +43,16 @@ env:
   total_steps_between_interaction: false
 
   obs_space:
-    suction_on: [false, true]
+    suction_on: false
     holding_cube: [false, true]
     joints: [false, true]
-    rel_pos: [true]
-    ef_height: [false, true]
-    ef_speed: [false, true]
+    rel_pos: false
+    ef_height: false
+    ef_speed: false
 
   action_space:
-    suction_on: [true]
-    joints: [true]
-
+    suction_on: false
+    joints: false
   reward:
     # 0 | -12 * self.dist + 4 | minimise_xy_dist
     # 0 | -12 * self.dist + 4 | 0.1 / (self.dist + 0.05 / 2) | max(-12 * self.dist + 4, -60 * self.dist + 5)
@@ -63,6 +62,6 @@ env:
     reward_ef_vertical_scale: [0.0, 1.0]
     reward_per_held_cube: [5.0, 8.0]
     reward_per_stacked_cube: [10.0, 20.0]
-    reward_for_ef_ground_col: [-1.0]
-    reward_for_cube_ground_col: [0.0, -1.0]
-    reward_for_ef_below_target_z: [0.0, -1.0]
+    reward_for_ef_ground_col: false
+    reward_for_cube_ground_col: false
+    reward_for_ef_below_target_z: false

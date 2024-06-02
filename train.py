@@ -56,12 +56,13 @@ if __name__ == '__main__':
         policy = utils.CONFIG["policy"]["policy"]
 
         # train new model
-        #policy_methods[policy](utils.CONFIG["policy"])
+        policy_methods[policy](utils.CONFIG["policy"])
         #train_new_ppo(total_steps_limit=_total_steps_limit, ep_step_limit=_ep_step_limit)
 
         for i in range(49): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate)
         for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_5M)
         for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_10M)
         for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_15M)
-        for i in range(20): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
+        for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
+        for i in range(50): train_last_model(total_time_steps=_total_steps_limit, max_episode_steps=_ep_step_limit, learning_rate=_learning_rate_20M)
         utils.close_wandb()

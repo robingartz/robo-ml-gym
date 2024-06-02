@@ -13,7 +13,7 @@ import config
 WANDB_PROJECT = "robo-ml-gym"
 ENV_ROBOWORLD = "robo_ml_gym:robo_ml_gym/RoboWorld-v0"
 CONFIG_FILE = "configs/config.yml"
-CONFIG_RND_FILE = "configs/config_policies.yml"
+CONFIG_RND_FILE = "configs/config_rnd.yml"
 MODELS_DIR = "models/"
 LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
