@@ -32,8 +32,9 @@ env:
   # reach | touch | pickup | stack
   goal: "stack"
   stack_start_with_cubes: false
+  early_termination: true
   # vertical | horizontal
-  robot_orientation: "horizontal"
+  robot_orientation: "vertical"
   # position | velocity
   robot_control_mode: "position"
   cube_count: 4
@@ -42,14 +43,16 @@ env:
   repeat_worst_performances: false
   total_steps_between_interaction: 0
   use_absolute_pos: [false, true]
+  # even if action_space.suction_on is disabled, include it in the action space for future training
+  include_suction_on_action: true
 
   obs_space:
-    suction_on: false
+    suction_on: true
     holding_cube: true
-    joints: false
+    joints: true
     rel_pos: true
-    ef_height: true
-    ef_speed: false
+    ef_height: false
+    ef_speed: true
 
   action_space:
     suction_on: true

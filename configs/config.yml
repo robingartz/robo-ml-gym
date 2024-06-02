@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "B11"
+  group: "C1"
   # pc_name is set by config.py
   pc_name: null
 
