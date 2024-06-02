@@ -21,14 +21,14 @@ policy:
   learning_rate_20M: 5e-6
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
-  total_steps_limit: 100_000
-  total_time_steps: 100_000
+  total_steps_limit: 500_000
+  total_time_steps: 500_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
   max_episode_steps: 2880
   ep_step_limit: 2880
   batch_size: 60
   n_epochs: 10
-  use_sde: true
+  use_sde: false
   use_rms_prop: true
 
 env:
