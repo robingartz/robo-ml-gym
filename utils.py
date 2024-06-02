@@ -18,6 +18,7 @@ MODELS_DIR = "models/"
 LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
 SCORES_FILE = "scores.txt"
+start_time = int(time.time())
 
 CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
 try:
@@ -50,6 +51,8 @@ if sys.platform == "win32":
 
 
 def init_wandb():
+    global start_time
+    start_time = int(time.time())
     # start a new wandb run to track this script
     wandb.init(
         # set the wandb project where this run will be logged: robo-ml-gym
@@ -87,7 +90,6 @@ def save_model(env, model, model_filename):
 
 def get_statistics(env, model, path):
     info = env.unwrapped.info
-    start_time = env.unwrapped.start_time
     successes = info["success_tally"]
     fails = info["fail_tally"]
     fails = 1 if fails == 0 else fails
