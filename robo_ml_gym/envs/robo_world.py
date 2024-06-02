@@ -314,7 +314,13 @@ class RoboWorldEnv(gym.Env):
             self.robot_id, range(0, 0+self.joints_count-1))], dtype=np.float32)
         pos = (self.target_pos[0], self.target_pos[1], self.target_pos[2] + CUBE_DIM / 2)
 
-        rel_pos = self.ef_pos - pos
+        if self.config["env"]["use_absolute_pos"]:
+            # in relation to center of the workspace
+            rel_pos = self.robot_workspace.get_center() - pos
+        else:
+            # moves with the EF
+            rel_pos = self.ef_pos - pos
+
         np.clip(rel_pos, -REL_MAX_DIS, REL_MAX_DIS)
         rel_pos = rel_pos.astype("float32")
         # TODO: ef_height above ground or above anything (e.g. cubes)

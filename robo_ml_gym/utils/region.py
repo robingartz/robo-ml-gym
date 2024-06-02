@@ -32,6 +32,9 @@ class Region:
                   )
         return points
 
+    def get_center(self):
+        return (self.abs_min_xyz + self.abs_max_xyz) / 2
+
     def get_const_point(self, z: int = None) -> np.array:
         return (self.abs_min_xyz + self.abs_max_xyz) / 2
 

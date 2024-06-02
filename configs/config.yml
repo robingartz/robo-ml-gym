@@ -41,6 +41,7 @@ env:
   constant_cube_spawn: false
   repeat_worst_performances: false
   total_steps_between_interaction: 0
+  use_absolute_pos: [false, true]
 
   obs_space:
     suction_on: false
