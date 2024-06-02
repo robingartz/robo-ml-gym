@@ -60,7 +60,7 @@ env:
   reward:
     # 0 | -12 * self.dist + 4 | minimise_xy_dist
     # 0 | -12 * self.dist + 4 | 0.1 / (self.dist + 0.05 / 2) | max(-12 * self.dist + 4, -60 * self.dist + 5)
-    dist_reward_func: ["-12 * self.dist + 4"]
+    dist_reward_func: ["-12 * self.dist + 4", "0.1 / (self.dist + 0.05 / 2)", "max(-12 * self.dist + 4, -60 * self.dist + 5)"]
     # false: 0 | true: max(0, (self.ef_angle - 90) / 90) * reward_ef_vertical_scale
     reward_ef_vertical: false
     reward_ef_vertical_scale: false

@@ -12,6 +12,8 @@ policy:
   # PPO | SAC | A2C | TD3 | DDPG | DQN - each have unique arguments and standard values
   # Only PPO works - the others end at 1000 ep steps...
   policy: "PPO"
+  # MultiInputPolicy | CnnPolicy - does not work for dict observation space
+  # policy_type: "MultiInputPolicy"
   learning_rate: 3e-4
   learning_rate_5M: 1e-4
   learning_rate_10M: 5e-5
