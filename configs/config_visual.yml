@@ -4,13 +4,16 @@
 #match_str: none
 
 meta:
-  group: "B11"
+  group: "C1"
   # pc_name is set by config.py
   pc_name: null
 
 policy:
-  # PPO | SAC | A2C | TD3 | DDPG - each have unique properties and standard values
+  # PPO | SAC | A2C | TD3 | DDPG | DQN - each have unique arguments and standard values
+  # Only PPO works - the others end at 1000 ep steps...
   policy: "PPO"
+  # MultiInputPolicy | CnnPolicy - does not work for dict observation space
+  # policy_type: "MultiInputPolicy"
   learning_rate: 3e-4
   learning_rate_5M: 1e-4
   learning_rate_10M: 5e-5
@@ -25,8 +28,8 @@ policy:
   ep_step_limit: 2880
   batch_size: 60
   n_epochs: 10
-  use_sde: False
-  use_rms_prop: True
+  use_sde: false
+  use_rms_prop: true
 
 env:
   # reach | touch | pickup | stack
@@ -34,7 +37,7 @@ env:
   stack_start_with_cubes: false
   early_termination: true
   # vertical | horizontal
-  robot_orientation: "vertical"
+  robot_orientation: "horizontal"
   # position | velocity
   robot_control_mode: "position"
   cube_count: 4
@@ -42,20 +45,19 @@ env:
   constant_cube_spawn: false
   repeat_worst_performances: false
   total_steps_between_interaction: 0
-  use_absolute_pos: [false, true]
+  use_absolute_pos: false
   # even if action_space.suction_on is disabled, include it in the action space for future training
   include_suction_on_action: true
 
   obs_space:
-    suction_on: true
+    suction_on: false
     holding_cube: true
-    joints: true
+    joints: false
     rel_pos: true
-    ef_height: false
-    ef_speed: true
-
+    ef_height: true
+    ef_speed: false
   action_space:
-    suction_on: true
+    suction_on: false
     joints: true
 
   reward:
@@ -68,6 +70,6 @@ env:
     reward_suction_control_scale: 2
     reward_per_held_cube: 8
     reward_per_stacked_cube: 10
-    reward_for_ef_ground_col: -100
-    reward_for_cube_ground_col: -5
-    reward_for_ef_below_target_z: -1
+    reward_for_ef_ground_col: -1
+    reward_for_cube_ground_col: 0
+    reward_for_ef_below_target_z: 0

@@ -48,6 +48,7 @@ env:
   use_absolute_pos: false
   # even if action_space.suction_on is disabled, include it in the action space for future training
   include_suction_on_action: true
+  suction_release_automatic: true
 
   obs_space:
     suction_on: false
@@ -57,7 +58,7 @@ env:
     ef_height: true
     ef_speed: false
   action_space:
-    suction_on: false
+    suction_on: true
     joints: true
 
   reward:
