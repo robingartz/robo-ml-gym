@@ -602,7 +602,7 @@ class RoboWorldEnv(gym.Env):
                 self._set_joint_motor_control2(self.robot_id, joint_index, self.control_mode, joint_action[joint_index])
 
     def _get_terminated(self):
-        if self.info["env"]["early_termination"]:
+        if self.config["env"]["early_termination"]:
             if self.goal == "reach":
                 ...
             elif self.goal == "touch":

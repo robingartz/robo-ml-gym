@@ -42,13 +42,13 @@ env:
   constant_cube_spawn: false
   repeat_worst_performances: false
   total_steps_between_interaction: 0
-  use_absolute_pos: [false, true]
+  use_absolute_pos: false
   # even if action_space.suction_on is disabled, include it in the action space for future training
   include_suction_on_action: true
 
   obs_space:
     suction_on: false
-    holding_cube: false
+    holding_cube: true
     joints: false
     rel_pos: true
     ef_height: true
