@@ -14,6 +14,7 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 
+from robo_ml_gym import tasks
 from robo_ml_gym.utils import reward_utils, env_utils
 from robo_ml_gym.utils.cube import Cube
 from robo_ml_gym.utils.region import Region
@@ -86,6 +87,9 @@ class RoboWorldEnv(gym.Env):
 
         # scoring
         self.goal = self.config["env"]["goal"]
+        tasks_map = {"reach": tasks.reach.Reach, "touch": tasks.touch.Touch, "pickup": tasks.pickup.Pickup,
+                     "arrange": tasks.arrange.Arrange, "stack": tasks.stack.Stack}
+        self.task = tasks_map[self.goal](self)
         self.score = 0
 
         # reward function
@@ -611,14 +615,7 @@ class RoboWorldEnv(gym.Env):
 
     def _get_terminated(self):
         if self.config["env"]["early_termination"]:
-            if self.goal == "reach":
-                ...
-            elif self.goal == "touch":
-                ...
-            elif self.goal == "pickup":
-                ...
-            elif self.goal == "stack":
-                ...
+            return self.task.get_termination()
         return False
 
     @staticmethod
@@ -640,7 +637,16 @@ class RoboWorldEnv(gym.Env):
         return reward
 
     def _update_target_pos(self, unstacked_cube: Cube):
-        if self.goal == "pickup":
+        if self.goal == "reach":
+            # only updates on reset
+            pass
+
+        elif self.goal == "touch":
+            self._process_cube_interactions()
+            self.target_pos = np.array(self.cubes[0].pos)
+            self.target_pos[2] += CUBE_DIM / 2
+
+        elif self.goal == "pickup":
             self._process_cube_interactions()
             if self.held_cube is None:
                 self.target_pos = np.array(self.cubes[0].pos)
@@ -648,14 +654,8 @@ class RoboWorldEnv(gym.Env):
             else:
                 self.target_pos = self.home_pos
 
-        elif self.goal == "touch":
-            self._process_cube_interactions()
-            self.target_pos = np.array(self.cubes[0].pos)
-            self.target_pos[2] += CUBE_DIM / 2
-
-        elif self.goal == "reach":
-            # only updates on reset
-            pass
+        elif self.goal == "arrange":
+            ...
 
         elif self.goal == "stack":
             if self.config["env"]["action_space"]["suction_on"]:
@@ -687,19 +687,10 @@ class RoboWorldEnv(gym.Env):
         self.info["cubes_stacked_tally"] += self.cubes_stacked
         self.info["carry_over_score"] += int(self.score)
 
-        # tally success/failures
-        if self.goal == "pickup":
-            if self.held_cube is not None: self.info["success_tally"] += 1
-            else: self.info["fail_tally"] += 1
-        elif self.goal == "touch":
-            if self.held_cube is not None: self.info["success_tally"] += 1
-            else: self.info["fail_tally"] += 1
-        elif self.goal == "reach":
-            if self.dist < self.pickup_tolerance: self.info["success_tally"] += 1
-            else: self.info["fail_tally"] += 1
-        elif self.goal == "stack":
-            if self.cubes_stacked == self.cube_count: self.info["success_tally"] += 1
-            else: self.info["fail_tally"] += 1
+        # tally successes/failures
+        successes, fails = self.task.get_success_fail_tally()
+        self.info["success_tally"] += successes
+        self.info["fail_tally"] += fails
 
     def _reset_target_pos(self):
         if self.cube_count > 0:
