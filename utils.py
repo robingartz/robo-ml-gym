@@ -17,7 +17,8 @@ LAST_MODEL_FILE = os.path.join(MODELS_DIR, ".last_model_name.txt")
 os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
 SCORES_FILE = "scores.txt"
 
-CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
+#CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
+CONFIG = config.get_config(CONFIG_FILE)
 try:
     if os.environ["ROBO_GYM_VISUALISE"] == "1":
         CONFIG_FILE = "config_visual.yml"
@@ -25,6 +26,7 @@ try:
         print(CONFIG)
 except KeyError:
     pass
+
 
 GROUP_PREFIX = "NA"
 if CONFIG["meta"].get("group", None) is not None:
