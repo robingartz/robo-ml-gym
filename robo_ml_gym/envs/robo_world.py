@@ -582,6 +582,14 @@ class RoboWorldEnv(gym.Env):
             else:
                 # suction turned off while not holding any cube
                 pass
+        if self.held_cube is not None:
+            if self._xy_close(self.held_cube.pos, self.stack_pos, self.stack_tolerance):
+                # only release once EF has stopped moving too fast
+                linear_vel, angular_vel = pybullet.getBaseVelocity(bodyUniqueId=self.held_cube.Id)
+                ef_speed = abs(np.linalg.norm(np.array(linear_vel)))
+                if ef_speed < 0.01:
+                    # release cube and move towards the next cube
+                    self._release_cube()
 
     def _process_cube_interactions_pickup_drop_auto(self):
         """pickup cube if EF close, drop cube if close to target,
