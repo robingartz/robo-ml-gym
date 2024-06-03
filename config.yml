@@ -30,7 +30,7 @@ env:
   # phantom_touch | touch | pickup | stack
   goal: "stack"
   # vertical | horizontal
-  robot_orientation: "vertical"
+  robot_orientation: "horizontal"
   # position | velocity
   robot_control_mode: "position"
   cube_count: 4
