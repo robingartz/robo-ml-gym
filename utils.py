@@ -20,7 +20,8 @@ os.makedirs(os.path.join(MODELS_DIR, "verbose"), exist_ok=True)
 SCORES_FILE = "scores.txt"
 start_time = int(time.time())
 
-CONFIG = config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
+#config.get_rnd_config(CONFIG_FILE, CONFIG_RND_FILE)
+CONFIG = config.get_config(CONFIG_FILE)
 try:
     if os.environ["ROBO_GYM_VISUALISE"] == "1":
         CONFIG_FILE = "configs/config_visual.yml"
