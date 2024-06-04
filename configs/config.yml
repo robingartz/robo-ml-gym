@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "C1"
+  group: "C8"
   # pc_name is set by config.py
   pc_name: null
 
@@ -21,8 +21,8 @@ policy:
   learning_rate_20M: 5e-6
   # not implemented:
   #learning_rates: "10M: 3e-4, 10M: 1e-4, 10M: 5e-5"
-  total_steps_limit: 12_000
-  total_time_steps: 12_000
+  total_steps_limit: 100_000
+  total_time_steps: 100_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
   max_episode_steps: 2880
   ep_step_limit: 2880
@@ -48,14 +48,14 @@ env:
   use_absolute_pos: false
   # even if action_space.suction_on is disabled, include it in the action space for future training
   include_suction_on_action: true
-  suction_release_automatic: true
+  suction_release_automatic: false
 
   obs_space:
     suction_on: false
     holding_cube: true
-    joints: false
+    joints: true
     rel_pos: true
-    ef_height: true
+    ef_height: false
     ef_speed: false
   action_space:
     suction_on: true
@@ -72,6 +72,6 @@ env:
     reward_per_held_cube: 8
     reward_per_stacked_cube: 10
     reward_for_ef_ground_col: -1
-    reward_for_cube_ground_col: 0
+    reward_for_cube_ground_col: -1
     reward_for_ef_below_target_z: 0
     reward_for_suction_on_without_cube: -2
