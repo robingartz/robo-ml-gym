@@ -164,8 +164,8 @@ def get_previous_model(env, custom_objects=None, match_str=None):
             models_dict = {"PPO": PPO, "SAC": SAC, "A2C": A2C, "TD3": TD3, "DDPG": DDPG, "DQN": DQN}
             for model_name, model_class in models_dict.items():
                 if model_name in last_model_name:
-                    model = PPO.load(last_model_name, env, custom_objects=custom_objects)
-                    #model = model_class.load(last_model_name, env, custom_objects=custom_objects)
+                    #model = PPO.load(last_model_name, env, custom_objects=custom_objects)
+                    model = model_class.load(last_model_name, env)#, custom_objects=custom_objects)
                     return model, prev_steps
         except Exception as exc:
             print(exc)
