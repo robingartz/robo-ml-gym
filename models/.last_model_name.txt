@@ -18,6 +18,9 @@ models/PPO-v18300k-A3-240515_153625
   models/PPO-v18100k-A3-240418_220725
 
 ---
+lunar-frog-160-cont:
+models/PPO-v15300k-B8-240531_113211
+models/PPO-v22200k-C8-240604_082631
 
 lunar-frog-160
 models/PPO-v15300k-B8-240531_113211

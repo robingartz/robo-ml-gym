@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "C8"
+  group: "C91"
   # pc_name is set by config.py
   pc_name: null
 
@@ -24,8 +24,8 @@ policy:
   total_steps_limit: 100_000
   total_time_steps: 100_000
   # 240 * 4 = 960, 240 * 8 = 1920, 240 * 12 = 2880, 240 * 16 = 3840
-  max_episode_steps: 2880
-  ep_step_limit: 2880
+  max_episode_steps: 1920
+  ep_step_limit: 1920
   batch_size: 60
   n_epochs: 10
   use_sde: false
