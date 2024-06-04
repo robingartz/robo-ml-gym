@@ -74,4 +74,3 @@ env:
     reward_for_ef_ground_col: -1
     reward_for_cube_ground_col: -1
     reward_for_ef_below_target_z: 0
-    reward_for_suction_on_without_cube: -2

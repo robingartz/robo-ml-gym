@@ -79,9 +79,6 @@ class Rewards:
 
         reward += self.config_reward["reward_per_stacked_cube"] * cubes_stacked
 
-        if held_cube is None and suction_on:
-            reward += self.config_reward["reward_for_suction_on_without_cube"]
-
         #if cubes_stacked == cube_count:
         #    ep_steps_remaining = ep_step_limit - ep_step
         #    max_reward_per_step = 1 + REWARD_FOR_HELD_CUBE + REWARD_FOR_EF_VERTICAL + REWARD_PER_STACKED_CUBE * cube_count
