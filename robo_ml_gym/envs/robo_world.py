@@ -235,7 +235,7 @@ class RoboWorldEnv(gym.Env):
 
         terminated = self._get_terminated()  #self.held_cube is not None #False  #self.dist < 0.056
         reward = self.rewards.get_reward(self.dist, self.ef_pos, self.ef_angle, self.target_pos, self.held_cube,
-                                         self.cubes_stacked, self.suction_on, CUBE_DIM)
+                                         self.cubes_stacked, self.suction_on, action, CUBE_DIM)
         observation = self._get_obs()
         info = self._get_info()
         self.score += reward
