@@ -4,7 +4,7 @@
 #match_str: none
 
 meta:
-  group: "C99"
+  group: "C991"
   # pc_name is set by config.py
   pc_name: null
 
@@ -68,6 +68,7 @@ env:
     # false: 0 | true: max(0, (self.ef_angle - 90) / 90) * reward_ef_vertical_scale
     reward_ef_vertical: true
     reward_ef_vertical_scale: 1
+    reward_suction_close: true
     reward_suction_control_scale: 2
     reward_per_held_cube: 8
     reward_per_stacked_cube: 10
